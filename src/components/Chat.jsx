@@ -134,6 +134,17 @@ export default function Chat() {
             </svg>
             <span className="hidden sm:inline">Agents</span>
           </Link>
+          <Link
+            href="/keys"
+            className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <circle cx="6" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M8.5 8.5L13 13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M10.5 11l1.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+            <span className="hidden sm:inline">API Keys</span>
+          </Link>
           {!isEmpty && (
             <button
               onClick={newChat}

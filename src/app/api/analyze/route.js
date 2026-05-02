@@ -1,11 +1,21 @@
 import { run } from "@/lib/pipeline";
+import { validateAndTrack } from "@/lib/apiKeys";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Allow up to 5 minutes for the full pipeline (preprocess + agents + orchestrate)
 export const maxDuration = 300;
 
 export async function POST(request) {
+  // API key auth — required when X-API-Key header is present (external callers).
+  // Web app calls from the same origin don't send the header and are allowed through.
+  const apiKeyHeader = request.headers.get("x-api-key");
+  if (apiKeyHeader) {
+    const keyDoc = await validateAndTrack(apiKeyHeader);
+    if (!keyDoc) {
+      return Response.json({ error: "Invalid or revoked API key" }, { status: 401 });
+    }
+  }
+
   let body;
   try {
     body = await request.json();
@@ -28,7 +38,6 @@ export async function POST(request) {
       };
       try {
         await run(input, { onEvent: send });
-        console.log("[API /analyze] Stream completed successfully");
       } catch (err) {
         console.error("[API /analyze] Pipeline error:", err?.message?.slice(0, 300) || err);
         send({ type: "error", message: err?.message || "unexpected failure" });
