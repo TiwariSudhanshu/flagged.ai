@@ -1,101 +1,106 @@
 "use client";
 
-import Image from "next/image";
-
-const VERDICT_DOT = {
-  scam:        "bg-red-500",
-  suspicious:  "bg-amber-400",
-  likely_legit:"bg-emerald-500",
-};
-
-function fmtDate(ts) {
-  const d = new Date(ts);
+function groupByDay(history) {
+  const groups = { Today: [], Yesterday: [], "This week": [], Older: [] };
   const now = new Date();
-  const diffDays = Math.floor((now - d) / 86_400_000);
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7)  return `${diffDays}d ago`;
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  history.forEach((item) => {
+    const diff = Math.floor((now - new Date(item.createdAt)) / 86_400_000);
+    if (diff === 0) groups.Today.push(item);
+    else if (diff === 1) groups.Yesterday.push(item);
+    else if (diff < 7) groups["This week"].push(item);
+    else groups.Older.push(item);
+  });
+  return groups;
+}
+
+function verdictDotClass(verdict) {
+  if (verdict === "scam") return "verdict-dot scam";
+  if (verdict === "suspicious") return "verdict-dot suspicious";
+  if (verdict === "likely_legit") return "verdict-dot safe";
+  return "verdict-dot";
+}
+
+function verdictLabel(verdict) {
+  if (verdict === "scam") return "Scam";
+  if (verdict === "suspicious") return "Suspicious";
+  if (verdict === "likely_legit") return "Likely legit";
+  return "Unknown";
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 export default function Sidebar({ open, history, activeId, onSelect, onDelete, onNew }) {
+  const groups = groupByDay(history);
+
   return (
-    <>
-      {/* Mobile overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-20 bg-black/20 sm:hidden"
-          onClick={() => onNew()}
-        />
-      )}
+    <aside
+      className="sidebar"
+      style={{ width: open ? 264 : 0, padding: open ? undefined : 0 }}
+    >
+      {/* Brand */}
+      <div className="sb-brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Flagged AI" width={26} height={26} style={{ borderRadius: 7, flexShrink: 0 }} />
+        <span className="name">Flagged AI</span>
+        <span className="dot" title="Operational" />
+      </div>
 
-      {/* Sidebar panel */}
-      <aside
-        style={{ width: open ? 256 : 0 }}
-        className="relative z-30 flex flex-col h-full bg-zinc-50 border-r border-zinc-200 overflow-hidden shrink-0 transition-all duration-200 ease-in-out"
-      >
-        {/* Inner wrapper — keeps content from wrapping during animation */}
-        <div className="w-64 flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 shrink-0">
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">History</span>
-            <button
-              onClick={onNew}
-              title="New check"
-              className="h-7 w-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-              </svg>
-            </button>
-          </div>
+      {/* New investigation */}
+      <button className="sb-new" onClick={onNew}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New investigation
+        </span>
+      </button>
 
-          {/* List */}
-          <div className="flex-1 overflow-y-auto py-2">
-            {history.length === 0 ? (
-              <div className="px-4 py-8 text-center text-xs text-zinc-400 leading-relaxed">
-                Your analysis history<br />will appear here.
-              </div>
-            ) : (
-              <ul className="flex flex-col gap-0.5 px-2">
-                {history.map((item) => (
-                  <li key={item.id}>
-                    <button
+      {/* History */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <div className="sb-section-label">History</div>
+        <div className="sb-history">
+          {history.length === 0 ? (
+            <div style={{ padding: "20px 8px", fontSize: 12, color: "var(--ink-4)", textAlign: "center", lineHeight: 1.6 }}>
+              Your analyses<br />will appear here.
+            </div>
+          ) : (
+            Object.entries(groups).map(([day, items]) =>
+              items.length > 0 ? (
+                <div key={day}>
+                  <div className="sb-day">{day}</div>
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className={"sb-item " + (activeId === item.id ? "active" : "")}
                       onClick={() => onSelect(item.id)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl group flex items-start gap-2.5 transition-colors ${
-                        activeId === item.id
-                          ? "bg-white border border-zinc-200 shadow-sm"
-                          : "hover:bg-white hover:border hover:border-zinc-100"
-                      }`}
                     >
-                      {/* Verdict dot */}
-                      <span className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-none ${VERDICT_DOT[item.verdict] ?? "bg-zinc-300"}`} />
-
-                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                        <span className="text-xs font-medium text-zinc-800 truncate leading-snug">
-                          {item.title}
-                        </span>
-                        <span className="text-[10px] text-zinc-400">{fmtDate(item.createdAt)}</span>
+                      <div className="title">{item.title}</div>
+                      <div className="meta">
+                        <span className={verdictDotClass(item.verdict)} />
+                        <span>{verdictLabel(item.verdict)}</span>
+                        <span>·</span>
+                        <span>{fmtTime(item.createdAt)}</span>
                       </div>
-
-                      {/* Delete */}
                       <button
+                        className="del-btn"
                         onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
-                        className="opacity-0 group-hover:opacity-100 shrink-0 h-5 w-5 rounded-md flex items-center justify-center text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all"
                         title="Delete"
                       >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                          <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                         </svg>
                       </button>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            )
+          )}
         </div>
-      </aside>
-    </>
+      </div>
+    </aside>
   );
 }

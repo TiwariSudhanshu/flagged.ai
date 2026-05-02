@@ -1,75 +1,82 @@
-const TONE = {
-  scam: {
-    bar: "bg-red-500",
-    badge: "bg-red-50 text-red-700 border-red-200",
-    scoreBg: "bg-red-500",
-    scoreText: "text-white",
-  },
-  suspicious: {
-    bar: "bg-amber-400",
-    badge: "bg-amber-50 text-amber-700 border-amber-200",
-    scoreBg: "bg-amber-400",
-    scoreText: "text-black",
-  },
-  likely_legit: {
-    bar: "bg-emerald-500",
-    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    scoreBg: "bg-emerald-500",
-    scoreText: "text-white",
-  },
-};
-
 const WEIGHT_DOT = {
-  high: "bg-red-500",
-  medium: "bg-amber-400",
-  low: "bg-[#d4d4d8]",
+  high:   { bg: "var(--danger)", label: "High risk" },
+  medium: { bg: "var(--warn)",   label: "Medium risk" },
+  low:    { bg: "var(--ink-4)",  label: "Low risk" },
 };
 
 export default function VerdictCard({ verdict }) {
   const { score, verdict: label, headline, reasoning, keyFindings, recommendedAction } = verdict;
-  const t = TONE[label] ?? TONE.suspicious;
-  const displayLabel = label === "likely_legit" ? "Likely legit" : label.charAt(0).toUpperCase() + label.slice(1);
+
+  const verdictClass = label === "likely_legit" ? "safe" : label === "suspicious" ? "suspicious" : "";
+
+  const headlineEl = (() => {
+    if (label === "scam") return <>Likely <em>scam</em>.</>;
+    if (label === "suspicious") return <>Suspicious — <em className="em-warn">verify before responding</em>.</>;
+    return <>Looks <em className="em-ok">legitimate</em>.</>;
+  })();
 
   return (
-    <article className="rounded-2xl border border-[#e4e4e7] overflow-hidden bg-white">
-      {/* Color bar */}
-      <div className={`h-1 w-full ${t.bar}`} />
-
-      <div className="px-5 py-4 flex items-center gap-4 border-b border-[#f4f4f5]">
-        {/* Score circle */}
-        <div className={`h-14 w-14 rounded-full ${t.scoreBg} flex items-center justify-center shrink-0`}>
-          <span className={`text-2xl font-bold tabular-nums ${t.scoreText}`}>{score}</span>
+    <div className="verdict-card">
+      {/* Header */}
+      <div className="vc-head">
+        <div className={"vc-score " + verdictClass}>
+          <span className="num">{score}</span>
+          <span className="lbl">RISK</span>
         </div>
-        <div className="flex flex-col gap-1 min-w-0">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border self-start ${t.badge}`}>
-            {displayLabel}
-          </span>
-          <p className="text-[15px] font-medium text-[#0d0d0d] leading-snug">{headline}</p>
+        <div className="vc-headline">
+          <div className="vc-verdict">{headline || headlineEl}</div>
+          <div className="vc-sub">{reasoning}</div>
         </div>
       </div>
 
-      <div className="px-5 py-4 flex flex-col gap-4">
-        <p className="text-sm text-[#52525b] leading-relaxed">{reasoning}</p>
-
-        {keyFindings?.length > 0 && (
-          <ul className="flex flex-col gap-2">
+      {/* Key findings */}
+      {keyFindings?.length > 0 && (
+        <div className="reasoning" style={{ borderRadius: 0, border: "none", borderTop: "1px solid var(--line)" }}>
+          <div className="reasoning-head">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>
+            </svg>
+            Key findings
+          </div>
+          <ul>
             {keyFindings.map((f, i) => (
-              <li key={i} className="flex gap-2.5 text-sm">
-                <span className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-none ${WEIGHT_DOT[f.weight] ?? WEIGHT_DOT.low}`} />
-                <div className="leading-relaxed">
-                  <span className="font-medium text-[#0d0d0d]">{f.signal}</span>
-                  <span className="text-[#71717a]"> — {f.explanation}</span>
-                </div>
+              <li key={i}>
+                <strong>{f.signal}</strong> — {f.explanation}
+                {f.weight && f.weight !== "low" && (
+                  <span style={{
+                    display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+                    background: WEIGHT_DOT[f.weight]?.bg ?? "var(--ink-4)",
+                    marginLeft: 6, verticalAlign: "middle",
+                  }} />
+                )}
               </li>
             ))}
           </ul>
-        )}
-
-        <div className="flex gap-2.5 items-start rounded-xl bg-[#f9f9f9] border border-[#e4e4e7] px-3.5 py-3 text-sm">
-          <span className="text-[10px] uppercase tracking-widest text-[#a1a1aa] font-semibold shrink-0 mt-0.5">Action</span>
-          <span className="text-[#0d0d0d]">{recommendedAction}</span>
         </div>
-      </div>
-    </article>
+      )}
+
+      {/* Footer with recommended action */}
+      {recommendedAction && (
+        <div className="vc-foot">
+          <span className="meta">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5, verticalAlign: "middle" }}>
+              <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/>
+            </svg>
+            {recommendedAction}
+          </span>
+          <div className="actions">
+            <a
+              href="https://cybercrime.gov.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="action-btn"
+              style={{ textDecoration: "none" }}
+            >
+              Report to authorities
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

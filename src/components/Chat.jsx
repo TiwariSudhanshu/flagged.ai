@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import VerdictCard from "./VerdictCard";
 import SignalRow from "./SignalRow";
@@ -14,48 +13,101 @@ const MAX_HISTORY = 50;
 
 let msgId = 0;
 function uid() { return ++msgId; }
-
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
-function makeTitle(text) {
-  return text.trim().slice(0, 60) + (text.trim().length > 60 ? "…" : "");
-}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function makeTitle(text) { return text.trim().slice(0, 55) + (text.trim().length > 55 ? "…" : ""); }
 
 function loadHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_HISTORY) ?? "[]");
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(LS_HISTORY) ?? "[]"); } catch { return []; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem(LS_HISTORY, JSON.stringify(h.slice(0, MAX_HISTORY))); } catch {}
 }
 
-function saveHistory(history) {
-  try {
-    localStorage.setItem(LS_HISTORY, JSON.stringify(history.slice(0, MAX_HISTORY)));
-  } catch {}
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
+/* ── Icons ─────────────────────────────────────────────────────────────── */
+const IcoPanel = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/>
+  </svg>
+);
+const IcoAgents = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+    <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+    <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+    <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+  </svg>
+);
+const IcoKey = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="8" cy="14" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l3 3"/>
+  </svg>
+);
+const IcoPlus = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </svg>
+);
+const IcoArrowUp = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 19V5M5 12l7-7 7 7"/>
+  </svg>
+);
+const IcoStop = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="6" width="12" height="12" rx="2"/>
+  </svg>
+);
+const IcoSpark = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>
+  </svg>
+);
+const IcoMail = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
+  </svg>
+);
+const IcoLink = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>
+  </svg>
+);
+const IcoGlobe = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+    <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>
+  </svg>
+);
+const IcoUser = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
+  </svg>
+);
+
+/* ── Demo suggestions ───────────────────────────────────────────────────── */
+const SUGG_ICONS = [IcoMail, IcoLink, IcoGlobe, IcoUser];
+
+/* ── Main component ─────────────────────────────────────────────────────── */
 export default function Chat() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [running, setRunning] = useState(false);
+  const [messages,    setMessages]    = useState([]);
+  const [input,       setInput]       = useState("");
+  const [running,     setRunning]     = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [history, setHistory] = useState([]);
-  const [activeId, setActiveId] = useState(null);
+  const [history,     setHistory]     = useState([]);
+  const [activeId,    setActiveId]    = useState(null);
 
-  const abortRef = useRef(null);
-  const bottomRef = useRef(null);
-  const textareaRef = useRef(null);
-  const currentIdRef = useRef(null);
+  const abortRef      = useRef(null);
+  const bottomRef     = useRef(null);
+  const threadRef     = useRef(null);
+  const textareaRef   = useRef(null);
+  const currentIdRef  = useRef(null);
+  const startTimeRef  = useRef(null);
 
-  // Load history from localStorage on mount
-  useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
+  useEffect(() => { setHistory(loadHistory()); }, []);
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
@@ -68,30 +120,20 @@ export default function Chat() {
     });
   }, []);
 
-  // Save conversation to history once analysis is complete
   function persistChat(msgs, chatId) {
     if (!chatId || msgs.length < 2) return;
     const userMsg = msgs.find((m) => m.role === "user");
     if (!userMsg) return;
     const aiMsg = msgs.findLast?.((m) => m.role === "assistant") ?? msgs[msgs.length - 1];
-    const verdict = aiMsg?.verdict?.verdict ?? null;
-
     const entry = {
       id: chatId,
       title: makeTitle(userMsg.text),
       createdAt: Date.now(),
-      verdict,
-      // Store stripped messages (no raw events) to keep localStorage lean
-      messages: msgs.map((m) =>
-        m.role === "assistant"
-          ? { ...m, events: [], done: true }
-          : m,
-      ),
+      verdict: aiMsg?.verdict?.verdict ?? null,
+      messages: msgs.map((m) => m.role === "assistant" ? { ...m, events: [], done: true } : m),
     };
-
     setHistory((prev) => {
-      const filtered = prev.filter((h) => h.id !== chatId);
-      const next = [entry, ...filtered];
+      const next = [entry, ...prev.filter((h) => h.id !== chatId)];
       saveHistory(next);
       return next;
     });
@@ -103,20 +145,19 @@ export default function Chat() {
 
     const chatId = genId();
     currentIdRef.current = chatId;
+    startTimeRef.current = Date.now();
     setActiveId(chatId);
 
-    const userMsg = { id: uid(), role: "user", text };
-    const aiMsg  = { id: uid(), role: "assistant", events: [], verdict: null, recovery: null, error: null, done: false };
+    const userMsg = { id: uid(), role: "user", text, ts: Date.now() };
+    const aiMsg   = { id: uid(), role: "assistant", events: [], verdict: null, recovery: null, error: null, done: false, ts: Date.now() };
 
     setMessages([userMsg, aiMsg]);
     setInput("");
     setRunning(true);
-
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    if (textareaRef.current) { textareaRef.current.style.height = "22px"; }
 
     const controller = new AbortController();
     abortRef.current = controller;
-
     let finalMessages = [userMsg, aiMsg];
 
     try {
@@ -128,7 +169,7 @@ export default function Chat() {
       });
       if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
 
-      const reader  = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
 
@@ -200,8 +241,7 @@ export default function Chat() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-full bg-white overflow-hidden">
-      {/* Sidebar */}
+    <div className="app" style={{ gridTemplateColumns: `${sidebarOpen ? 264 : 0}px 1fr` }}>
       <Sidebar
         open={sidebarOpen}
         history={history}
@@ -211,171 +251,125 @@ export default function Chat() {
         onNew={newChat}
       />
 
-      {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 shrink-0">
-          <div className="flex items-center gap-2">
-            {/* Sidebar toggle */}
-            <button
-              onClick={() => setSidebarOpen((v) => !v)}
-              className="h-7 w-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
-              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-            >
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="1.5" y="3" width="12" height="1.2" rx="0.6" fill="currentColor"/>
-                <rect x="1.5" y="6.9" width="8" height="1.2" rx="0.6" fill="currentColor"/>
-                <rect x="1.5" y="10.8" width="12" height="1.2" rx="0.6" fill="currentColor"/>
-              </svg>
-            </button>
-            <Image src="/logo.png" alt="Flagged AI" width={32} height={32} className="rounded-md" />
-            <span className="font-semibold text-[15px] text-zinc-900">Flagged AI</span>
+      <main className="main">
+        {/* Topbar */}
+        <div className="topbar">
+          <button className="tb-btn" onClick={() => setSidebarOpen((v) => !v)} aria-label="Toggle sidebar" style={{ padding: "7px 8px" }}>
+            <IcoPanel />
+          </button>
+          <div className="tb-title">
+            Flagged AI
+            {!isEmpty && <span className="sub">— scam analysis</span>}
           </div>
+          <div className="tb-spacer" />
+          <Link href="/agents" className="tb-btn">
+            <IcoAgents /> <span>Agents</span>
+          </Link>
+          <Link href="/keys" className="tb-btn">
+            <IcoKey /> <span>API Keys</span>
+          </Link>
+          <div className="tb-divider" />
+          <button className="tb-cta" onClick={newChat}>
+            <IcoPlus /> New
+          </button>
+        </div>
 
-          <div className="flex items-center gap-1">
-            <Link href="/agents" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-1 rounded-lg hover:bg-zinc-100">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-                <rect x="8.5" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-                <rect x="2" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-                <rect x="8.5" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-              </svg>
-              <span className="hidden sm:inline">Agents</span>
-            </Link>
-            <Link href="/keys" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-1 rounded-lg hover:bg-zinc-100">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <circle cx="5.5" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.3"/>
-                <path d="M7.5 7.5L13 13M10.5 11l1.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-              <span className="hidden sm:inline">API Keys</span>
-            </Link>
-            {!isEmpty && (
-              <button
-                onClick={newChat}
-                className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-1 rounded-lg hover:bg-zinc-100"
-              >
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                  <path d="M8 2.75a.75.75 0 0 0-1.5 0V7H2.75a.75.75 0 0 0 0 1.5H6.5v4.25a.75.75 0 0 0 1.5 0V8.5h4.25a.75.75 0 0 0 0-1.5H8V2.75Z" fill="currentColor"/>
-                </svg>
-                New
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Messages or empty state */}
-        <div className="flex-1 overflow-y-auto">
-          {isEmpty ? (
-            <EmptyState onDemo={(text) => setInput(text)} running={running} />
-          ) : (
-            <div className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6">
-              {messages.map((msg) =>
+        {/* Thread */}
+        <div className="thread" ref={threadRef}>
+          <div className="thread-inner">
+            {isEmpty ? (
+              <WelcomeState />
+            ) : (
+              messages.map((msg) =>
                 msg.role === "user"
-                  ? <UserMessage key={msg.id} text={msg.text} />
-                  : <AssistantMessage key={msg.id} msg={msg} />,
-              )}
-              <div ref={bottomRef} />
+                  ? <UserMsgEl key={msg.id} msg={msg} />
+                  : <AssistantMsgEl key={msg.id} msg={msg} />
+              )
+            )}
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        {/* Composer */}
+        <div className="composer-wrap">
+          {isEmpty && (
+            <div className="suggestions">
+              {demoScenarios.map((s, i) => {
+                const Ico = SUGG_ICONS[i % SUGG_ICONS.length];
+                return (
+                  <button key={s.id} className="sugg" disabled={running} onClick={() => setInput(s.input)}>
+                    <Ico /> {s.label}
+                  </button>
+                );
+              })}
             </div>
           )}
-        </div>
-
-        {/* Input bar */}
-        <div className="shrink-0 border-t border-zinc-200 bg-white px-4 py-4">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm focus-within:border-zinc-400 transition-colors">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="Paste a suspicious job offer, recruiter message, or LinkedIn URL…"
-                rows={1}
-                disabled={running}
-                className="flex-1 resize-none bg-transparent text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 outline-none disabled:opacity-50 min-h-[24px] max-h-[160px] overflow-y-auto"
-                style={{ height: "auto" }}
-              />
+          <div className="composer">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "22px";
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Paste a suspicious job offer, recruiter message, or LinkedIn URL…"
+              rows={1}
+              style={{ height: "22px" }}
+            />
+            <div className="composer-row">
+              <div className="comp-spacer" />
+              <span className="comp-meta">{input.length > 0 ? `${input.length} chars` : "0 / 12 000"}</span>
               {running ? (
-                <button
-                  onClick={() => abortRef.current?.abort()}
-                  className="shrink-0 h-8 w-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                  aria-label="Stop"
-                  title="Stop analysis"
-                >
-                  <span className="h-3 w-3 rounded-sm bg-white inline-block" />
+                <button className="send-btn stop" onClick={() => abortRef.current?.abort()} title="Stop analysis">
+                  <IcoStop />
                 </button>
               ) : (
-                <button
-                  onClick={submit}
-                  disabled={!input.trim()}
-                  className="shrink-0 h-8 w-8 rounded-full bg-zinc-900 text-white flex items-center justify-center disabled:opacity-30 hover:bg-zinc-700 transition-colors"
-                  aria-label="Send"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M7 1.5v11M7 1.5L3 5.5M7 1.5l4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                <button className="send-btn" onClick={submit} disabled={!input.trim()} title="Send">
+                  <IcoArrowUp />
                 </button>
               )}
             </div>
-            <p className="text-center text-[11px] text-zinc-400 mt-2">
-              Enter to send · Shift+Enter for new line · up to 6 checks in parallel
-            </p>
+          </div>
+          <div className="comp-hint">
+            <kbd>Enter</kbd> to send · <kbd>Shift</kbd> + <kbd>Enter</kbd> for new line · up to 6 checks in parallel
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function EmptyState({ onDemo, running }) {
+/* ── Welcome state ──────────────────────────────────────────────────────── */
+function WelcomeState() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-full px-4 py-16 gap-8">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="h-16 w-16 rounded-2xl overflow-hidden">
-          <Image src="/logo.png" alt="Flagged AI" width={64} height={64} className="object-cover" />
-        </div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Flagged AI</h1>
-        <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
-          The agent between a scam job and its victim. Paste a suspicious
-          offer — get a 0–100 risk score with reasoning in under 30 seconds.
-        </p>
-      </div>
-      <div className="flex flex-col items-center gap-3">
-        <p className="text-xs text-zinc-400 uppercase tracking-wider">Try a demo</p>
-        <div className="flex flex-wrap justify-center gap-2 max-w-lg">
-          {demoScenarios.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => onDemo(s.input)}
-              disabled={running}
-              className="px-3.5 py-1.5 rounded-full border border-zinc-200 text-sm text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40"
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="welcome">
+      <div className="eyebrow">Job Scam Detection · India</div>
+      <h1>Is this offer <em>real</em>?</h1>
+      <p>
+        Paste a suspicious job offer, recruiter email, or LinkedIn message — I'll verify across
+        6 sources and give you a 0–100 risk score in under 30 seconds.
+      </p>
     </div>
   );
 }
 
-function UserMessage({ text }) {
+/* ── User message ───────────────────────────────────────────────────────── */
+function UserMsgEl({ msg }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[80%] bg-zinc-100 rounded-2xl rounded-br-sm px-4 py-3 text-sm text-zinc-900 leading-relaxed whitespace-pre-wrap break-words">
-        {text}
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+      <div className="msg-user">
+        <span className="from">You · {fmtTime(msg.ts ?? Date.now())}</span>
+        {msg.text}
       </div>
     </div>
   );
 }
 
-function AssistantMessage({ msg }) {
-  const { events, verdict, recovery, error, done } = msg;
+/* ── Assistant message ──────────────────────────────────────────────────── */
+function AssistantMsgEl({ msg }) {
+  const { events, verdict, recovery, error, done, ts } = msg;
 
   const preprocessEvent = events.find((e) => e.type === "preprocess");
   const planEvent       = events.find((e) => e.type === "plan");
@@ -393,58 +387,85 @@ function AssistantMessage({ msg }) {
   }
 
   const signalEntries   = Object.entries(signalMap);
-  const allAgentsDone   = signalEntries.length > 0 && signalEntries.every(([, v]) => v.status !== "running");
-  const isOrchestrating = allAgentsDone && !verdict && !recovery && !done;
+  const doneCount       = signalEntries.filter(([, v]) => v.status !== "running").length;
+  const totalCount      = signalEntries.length;
+  const pct             = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const allAgentsDone   = totalCount > 0 && doneCount === totalCount;
+  const isOrchestrating = allAgentsDone && !verdict && !recovery && !error && !done;
   const isThinking      = !done && events.length === 0;
-  const hasSignals      = signalEntries.length > 0;
-  const hasContent      = preprocessEvent || hasSignals || verdict || recovery || error;
+  const hasSignals      = totalCount > 0;
 
   return (
-    <div className="flex gap-2">
-      <div className="shrink-0 h-12 w-12 rounded-full overflow-hidden mt-0.5">
-        <Image src="/logo.png" alt="Flagged AI" width={48} height={48} className="object-cover" />
+    <div className="msg-ai">
+      {/* Avatar */}
+      <div className="ai-avatar">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Flagged AI" width={32} height={32} style={{ objectFit: "cover", display: "block" }} />
       </div>
-      <div className="flex-1 flex flex-col gap-3 min-w-0">
-        <span className="text-sm font-semibold text-zinc-900">Flagged AI</span>
 
+      <div className="ai-body">
+        <div className="ai-head">
+          <span>Flagged AI</span>
+          <span className="timestamp">{fmtTime(ts ?? Date.now())}</span>
+        </div>
+
+        {/* Thinking */}
         {isThinking && (
-          <div className="flex items-center gap-2.5 text-sm text-zinc-400">
-            <ThinkingDots />
-            <span>Reading your message…</span>
+          <div className="typing">
+            <span /><span /><span />
           </div>
         )}
 
-        {hasContent && (
-          <div className="flex flex-col gap-3">
-            {preprocessEvent && <PreprocessBadges data={preprocessEvent.data} />}
+        {/* Preprocess tags */}
+        {preprocessEvent && <PreprocessTags data={preprocessEvent.data} />}
 
-            {hasSignals && (
-              <div className="rounded-2xl border border-zinc-200 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Checks</span>
-                  <span className="text-xs text-zinc-400">
-                    {signalEntries.filter(([, v]) => v.status !== "running").length} / {signalEntries.length} done
+        {/* Agent checks */}
+        {hasSignals && (
+          <div className="verdict-card">
+            <div className="vc-progress">
+              <span className="label-strong">{doneCount}/{totalCount}</span>
+              <span>checks complete</span>
+              <div className="pbar">
+                <div className="pfill" style={{ width: pct + "%" }} />
+              </div>
+              <span>{pct}%</span>
+            </div>
+            <div className="vc-checks">
+              {signalEntries.map(([name, { status, summary, signal, reason }]) => (
+                <SignalRow key={name} name={name} status={status} summary={summary} signal={signal} reason={reason} />
+              ))}
+            </div>
+            {isOrchestrating && (
+              <div className="vc-foot">
+                <span className="meta" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="typing" style={{ padding: "4px 8px", border: "none", background: "transparent" }}>
+                    <span /><span /><span />
                   </span>
-                </div>
-                <div className="divide-y divide-zinc-100">
-                  {signalEntries.map(([name, { status, summary, signal, reason }]) => (
-                    <SignalRow key={name} name={name} status={status} summary={summary} signal={signal} reason={reason} />
-                  ))}
-                </div>
-                {isOrchestrating && (
-                  <div className="flex items-center gap-2.5 px-4 py-3 bg-zinc-50 border-t border-zinc-100">
-                    <ThinkingDots />
-                    <span className="text-xs text-zinc-500">Generating verdict…</span>
-                  </div>
-                )}
+                  Generating verdict…
+                </span>
               </div>
             )}
+          </div>
+        )}
 
-            {recovery && <RecoveryCard recovery={recovery} />}
-            {verdict   && <VerdictCard verdict={verdict} />}
-            {error     && (
-              <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">{error}</div>
-            )}
+        {/* Recovery */}
+        {recovery && <RecoveryCard recovery={recovery} />}
+
+        {/* Verdict */}
+        {verdict && <VerdictCard verdict={verdict} />}
+
+        {/* Error */}
+        {error && (
+          <div className="error-block">{error}</div>
+        )}
+
+        {/* Reasoning summary from verdict */}
+        {verdict?.reasoning && (
+          <div className="reasoning">
+            <div className="reasoning-head"><IcoSpark /> Why I flagged this</div>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: "var(--ink-2)" }}>
+              {verdict.recommendedAction}
+            </p>
           </div>
         )}
       </div>
@@ -452,39 +473,22 @@ function AssistantMessage({ msg }) {
   );
 }
 
-function ThinkingDots() {
-  return (
-    <span className="flex gap-1">
-      {[0, 1, 2].map((i) => (
-        <span key={i} className="h-1.5 w-1.5 rounded-full bg-zinc-300 animate-bounce"
-          style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.9s" }} />
-      ))}
-    </span>
-  );
-}
-
-function PreprocessBadges({ data }) {
+/* ── Preprocess tags ────────────────────────────────────────────────────── */
+function PreprocessTags({ data }) {
   if (!data) return null;
-  const badges = [];
-  if (data.paymentAsk)          badges.push({ label: `Payment ask${data.paymentAmount ? ` · ${data.paymentAmount}` : ""}`, color: "red" });
-  if (data.userIntent === "recovery") badges.push({ label: "Recovery mode", color: "amber" });
-  if (data.redFlagPhrases?.length)    badges.push({ label: `${data.redFlagPhrases.length} red flag phrase${data.redFlagPhrases.length > 1 ? "s" : ""}`, color: "orange" });
-  if (data.company)             badges.push({ label: data.company, color: "gray" });
-  if (data.role)                badges.push({ label: data.role,    color: "gray" });
-  if (!badges.length) return null;
-
-  const colors = {
-    red:    "bg-red-50 text-red-700 border-red-200",
-    amber:  "bg-amber-50 text-amber-700 border-amber-200",
-    orange: "bg-orange-50 text-orange-700 border-orange-200",
-    gray:   "bg-zinc-100 text-zinc-600 border-zinc-200",
-  };
-
+  const tags = [];
+  if (data.paymentAsk) tags.push({ label: `Payment ask${data.paymentAmount ? ` · ${data.paymentAmount}` : ""}`, cls: "danger" });
+  if (data.userIntent === "recovery") tags.push({ label: "Recovery mode", cls: "warn" });
+  if (data.redFlagPhrases?.length) tags.push({ label: `${data.redFlagPhrases.length} red flag phrase${data.redFlagPhrases.length > 1 ? "s" : ""}`, cls: "warn" });
+  if (data.company) tags.push({ label: data.company, cls: "" });
+  if (data.role) tags.push({ label: data.role, cls: "" });
+  if (!tags.length) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {badges.map((b, i) => (
-        <span key={i} className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${colors[b.color]}`}>
-          {b.label}
+    <div className="tag-row">
+      {tags.map((t, i) => (
+        <span key={i} className={`tag ${t.cls}`}>
+          <span className="tag-dot" />
+          {t.label}
         </span>
       ))}
     </div>

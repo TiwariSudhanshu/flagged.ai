@@ -2,105 +2,92 @@
 
 import { useState } from "react";
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-function IconShield() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <path d="M7.5 1.5 L13 3.5 L13 7.5 C13 10.5 10.5 13 7.5 13.5 C4.5 13 2 10.5 2 7.5 L2 3.5 Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-      <path d="M5 7.5l1.5 1.5L10 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+/* ── Icons ────────────────────────────────────────────────────────────────── */
+const IcoShield = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l8 3v6c0 4.5-3.5 8-8 9-4.5-1-8-4.5-8-9V6l8-3z"/>
+    <path d="M9.5 12.5l2 2 3.5-4"/>
+  </svg>
+);
+const IcoGlobe = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>
+  </svg>
+);
+const IcoDoc = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 3h8l4 4v14H7V3z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>
+  </svg>
+);
+const IcoBuilding = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="3" width="16" height="18" rx="1.5"/>
+    <path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2M10 21v-3h4v3"/>
+  </svg>
+);
+const IcoUser = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
+  </svg>
+);
+const IcoMail = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
+  </svg>
+);
+const IcoSearch = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+  </svg>
+);
+const IcoCheck = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>
+  </svg>
+);
+const IcoWarn = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18.5v.5"/>
+  </svg>
+);
+const IcoChevron = ({ open }) => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+    style={{ transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+    <path d="M6 9l6 6 6-6"/>
+  </svg>
+);
+const IcoSpin = () => (
+  <span className="spin">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9" strokeDasharray="40 20" strokeLinecap="round"/>
     </svg>
-  );
-}
-function IconGlobe() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M7.5 2C7.5 2 5.5 4.5 5.5 7.5S7.5 13 7.5 13M7.5 2C7.5 2 9.5 4.5 9.5 7.5S7.5 13 7.5 13" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M2 7.5h11" stroke="currentColor" strokeWidth="1.3"/>
-    </svg>
-  );
-}
-function IconDoc() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <rect x="3" y="1.5" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M5.5 5.5h4M5.5 7.5h4M5.5 9.5h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function IconBuilding() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <rect x="2" y="3" width="11" height="10" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M5 13V9h5v4" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-      <path d="M5 6h1.5M8.5 6H10M5 8h1.5M8.5 8H10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-      <path d="M2 5.5h11" stroke="currentColor" strokeWidth="1.3"/>
-    </svg>
-  );
-}
-function IconPerson() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M2.5 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function IconMail() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <rect x="2" y="3.5" width="11" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M2 5l5.5 4 5.5-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-function IconSearch() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M9.5 9.5L13 13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function IconChevron({ open }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
-      <path d="M3 5l3.5 3.5L10 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
+  </span>
+);
 
-// ── Config ────────────────────────────────────────────────────────────────────
+/* ── Config ─────────────────────────────────────────────────────────────── */
 const AGENT_META = {
-  scamDb:        { label: "Scam database",        Icon: IconShield  },
-  domainAgent:   { label: "Domain & website",     Icon: IconGlobe   },
-  gst:           { label: "GST registry",         Icon: IconDoc     },
-  mca:           { label: "MCA registry",         Icon: IconBuilding},
-  linkedinAgent: { label: "Recruiter / LinkedIn", Icon: IconPerson  },
-  emailAgent:    { label: "Email check",          Icon: IconMail    },
-  whois:         { label: "WHOIS lookup",         Icon: IconSearch  },
-  proxycurl:     { label: "LinkedIn profile",     Icon: IconPerson  },
-  reverseImage:  { label: "Reverse image",        Icon: IconSearch  },
+  scamDb:        { label: "Scam database",        Icon: IcoShield   },
+  domainAgent:   { label: "Domain & website",     Icon: IcoGlobe    },
+  gst:           { label: "GST registry",         Icon: IcoDoc      },
+  mca:           { label: "MCA registry",         Icon: IcoBuilding },
+  linkedinAgent: { label: "Recruiter / LinkedIn", Icon: IcoUser     },
+  emailAgent:    { label: "Email check",          Icon: IcoMail     },
+  whois:         { label: "WHOIS lookup",         Icon: IcoSearch   },
+  proxycurl:     { label: "LinkedIn profile",     Icon: IcoUser     },
+  reverseImage:  { label: "Reverse image",        Icon: IcoSearch   },
 };
 
-const STATUS_STYLE = {
-  running:     { dot: "bg-blue-400 animate-pulse",  text: "text-blue-600",    label: "Running…"    },
-  ok:          { dot: "bg-emerald-500",             text: "text-emerald-600", label: "Done"        },
-  unavailable: { dot: "bg-zinc-300",                text: "text-zinc-400",    label: "Unavailable" },
-  error:       { dot: "bg-red-400",                 text: "text-red-500",     label: "Error"       },
-  skipped:     { dot: "bg-zinc-300",                text: "text-zinc-400",    label: "Skipped"     },
-};
-
-// ── Signal detail renderers ───────────────────────────────────────────────────
+/* ── Detail renderers (keep existing Tailwind-based ones intact) ─────────── */
 function ScamDbDetail({ data }) {
-  if (!data) return <Raw data={data} />;
+  if (!data) return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   return (
-    <div className="flex flex-col gap-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <StatusChip ok={!data.match} trueLabel="No match found" falseLabel={`Match on: ${data.matchedOn?.join(", ") || "unknown"}`} />
       {data.match && data.matchedRecords?.length > 0 && (
-        <div className="flex flex-col gap-1.5">
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {data.matchedRecords.map((r, i) => (
-            <div key={i} className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-800 font-mono whitespace-pre-wrap">
+            <div key={i} style={{ background: "oklch(0.97 0.02 28)", border: "1px solid oklch(0.9 0.05 28)", borderRadius: 8, padding: "8px 12px", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--accent-ink)", whiteSpace: "pre-wrap" }}>
               {JSON.stringify(r, null, 2)}
             </div>
           ))}
@@ -111,21 +98,21 @@ function ScamDbDetail({ data }) {
 }
 
 function DomainDetail({ data }) {
-  if (!data) return <Raw data={data} />;
+  if (!data) return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   const w = data.whois || {};
   const r = data.reasoning || {};
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex flex-wrap gap-1.5">
-        <Pill label={data.domain || "—"} color="gray" />
-        <Pill label={data.reachable ? "Reachable" : "Unreachable"} color={data.reachable ? "green" : "red"} />
-        {w.ageDays != null && <Pill label={`${w.ageDays}d old`} color={w.ageDays < 14 ? "red" : w.ageDays < 60 ? "amber" : "green"} />}
-        {w.registrar && <Pill label={w.registrar} color="gray" />}
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <Pill label={data.domain || "—"} />
+        <Pill label={data.reachable ? "Reachable" : "Unreachable"} color={data.reachable ? "ok" : "danger"} />
+        {w.ageDays != null && <Pill label={`${w.ageDays}d old`} color={w.ageDays < 14 ? "danger" : w.ageDays < 60 ? "warn" : "ok"} />}
+        {w.registrar && <Pill label={w.registrar} />}
       </div>
-      {r.notes && <p className="text-xs text-zinc-500 leading-relaxed">{r.notes}</p>}
+      {r.notes && <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.6, margin: 0 }}>{r.notes}</p>}
       {r.redFlags?.length > 0 && (
-        <ul className="flex flex-col gap-1">
-          {r.redFlags.map((f, i) => <li key={i} className="text-xs text-red-600 flex gap-1.5"><span>·</span>{f}</li>)}
+        <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
+          {r.redFlags.map((f, i) => <li key={i} style={{ fontSize: 12, color: "var(--danger)", marginBottom: 3 }}>{f}</li>)}
         </ul>
       )}
     </div>
@@ -133,56 +120,56 @@ function DomainDetail({ data }) {
 }
 
 function GstDetail({ data }) {
-  if (!data) return <Raw data={data} />;
+  if (!data) return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {data.gstin && <Pill label={`GSTIN: ${data.gstin}`} color="gray" />}
-      {data.tradeName && <Pill label={data.tradeName} color="gray" />}
-      {data.status && <Pill label={data.status} color={data.status === "Active" ? "green" : "red"} />}
-      {data.state && <Pill label={data.state} color="gray" />}
-      {!data.gstin && !data.tradeName && <span className="text-xs text-zinc-400">No GST record found</span>}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {data.gstin && <Pill label={`GSTIN: ${data.gstin}`} />}
+      {data.tradeName && <Pill label={data.tradeName} />}
+      {data.status && <Pill label={data.status} color={data.status === "Active" ? "ok" : "danger"} />}
+      {data.state && <Pill label={data.state} />}
+      {!data.gstin && !data.tradeName && <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No GST record found</span>}
     </div>
   );
 }
 
 function McaDetail({ data }) {
-  if (!data) return <Raw data={data} />;
+  if (!data) return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-1.5">
-        <Pill label={data.found ? "Found" : "Not found"} color={data.found ? "green" : "red"} />
-        {data.cin && <Pill label={`CIN: ${data.cin}`} color="gray" />}
-        {data.ageDays != null && <Pill label={`${data.ageDays}d old`} color={data.ageDays < 90 ? "amber" : "green"} />}
-        {data.status && <Pill label={data.status} color={data.status?.toLowerCase().includes("active") ? "green" : "amber"} />}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <Pill label={data.found ? "Found" : "Not found"} color={data.found ? "ok" : "danger"} />
+        {data.cin && <Pill label={`CIN: ${data.cin}`} />}
+        {data.ageDays != null && <Pill label={`${data.ageDays}d old`} color={data.ageDays < 90 ? "warn" : "ok"} />}
+        {data.status && <Pill label={data.status} color={data.status?.toLowerCase().includes("active") ? "ok" : "warn"} />}
       </div>
-      {data.companyName && <p className="text-xs text-zinc-500">{data.companyName}</p>}
+      {data.companyName && <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>{data.companyName}</p>}
     </div>
   );
 }
 
 function LinkedinDetail({ data }) {
-  if (!data) return <Raw data={data} />;
+  if (!data) return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   const r = data.reasoning || {};
   return (
-    <div className="flex flex-col gap-2.5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {r.plausibleRecruiter != null && (
         <StatusChip ok={r.plausibleRecruiter} trueLabel="Recruiter looks plausible" falseLabel="Recruiter looks implausible" />
       )}
       {data.emailDomainAnalysis?.length > 0 && (
-        <div className="flex flex-col gap-1.5">
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {data.emailDomainAnalysis.map((e, i) => (
-            <div key={i} className="flex flex-wrap gap-1.5">
-              <Pill label={e.email} color="gray" />
-              {e.isFreemail && <Pill label="Freemail" color="amber" />}
-              {e.isLookalike && <Pill label="Lookalike domain" color="red" />}
+            <div key={i} style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              <Pill label={e.email} />
+              {e.isFreemail && <Pill label="Freemail" color="warn" />}
+              {e.isLookalike && <Pill label="Lookalike domain" color="danger" />}
             </div>
           ))}
         </div>
       )}
-      {r.notes && <p className="text-xs text-zinc-500 leading-relaxed">{r.notes}</p>}
+      {r.notes && <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.6, margin: 0 }}>{r.notes}</p>}
       {r.redFlags?.length > 0 && (
-        <ul className="flex flex-col gap-1">
-          {r.redFlags.map((f, i) => <li key={i} className="text-xs text-red-600 flex gap-1.5"><span>·</span>{f}</li>)}
+        <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
+          {r.redFlags.map((f, i) => <li key={i} style={{ fontSize: 12, color: "var(--danger)", marginBottom: 3 }}>{f}</li>)}
         </ul>
       )}
     </div>
@@ -190,50 +177,41 @@ function LinkedinDetail({ data }) {
 }
 
 function EmailDetail({ data }) {
-  if (!data) return <Raw data={data} />;
+  if (!data) return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   const r = data.reasoning || {};
   return (
-    <div className="flex flex-col gap-2.5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {r.suspicious != null && (
         <StatusChip ok={!r.suspicious} trueLabel="Emails look normal" falseLabel="Suspicious email(s) found" />
       )}
       {data.checks?.map((c, i) => (
-        <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2">
-          <span className="text-xs font-mono text-zinc-600">{c.email}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {c.isFreemail && <Pill label="Freemail" color="amber" />}
-            {c.isDisposable && <Pill label="Disposable" color="red" />}
-            {c.isLookalike && <Pill label="Lookalike domain" color="red" />}
-            <Pill label={c.mx?.available ? "MX ✓" : "No MX records"} color={c.mx?.available ? "green" : "red"} />
-            {c.whois?.ageDays != null && <Pill label={`Domain ${c.whois.ageDays}d old`} color={c.whois.ageDays < 30 ? "red" : "gray"} />}
+        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6, background: "var(--bg-sunken)", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px" }}>
+          <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--ink-2)" }}>{c.email}</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {c.isFreemail && <Pill label="Freemail" color="warn" />}
+            {c.isDisposable && <Pill label="Disposable" color="danger" />}
+            {c.isLookalike && <Pill label="Lookalike domain" color="danger" />}
+            <Pill label={c.mx?.available ? "MX ✓" : "No MX"} color={c.mx?.available ? "ok" : "danger"} />
+            {c.whois?.ageDays != null && <Pill label={`Domain ${c.whois.ageDays}d old`} color={c.whois.ageDays < 30 ? "danger" : "neutral"} />}
           </div>
         </div>
       ))}
-      {r.notes && <p className="text-xs text-zinc-500 leading-relaxed">{r.notes}</p>}
+      {r.notes && <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.6, margin: 0 }}>{r.notes}</p>}
       {r.redFlags?.length > 0 && (
-        <ul className="flex flex-col gap-1">
-          {r.redFlags.map((f, i) => <li key={i} className="text-xs text-red-600 flex gap-1.5"><span>·</span>{f}</li>)}
+        <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
+          {r.redFlags.map((f, i) => <li key={i} style={{ fontSize: 12, color: "var(--danger)", marginBottom: 3 }}>{f}</li>)}
         </ul>
       )}
     </div>
   );
 }
 
-function Raw({ data }) {
-  if (!data) return <span className="text-xs text-zinc-400">No data</span>;
-  return (
-    <pre className="text-[11px] text-zinc-500 leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
-      {JSON.stringify(data, null, 2)}
-    </pre>
-  );
-}
-
 function renderDetail(name, signal) {
   const data = signal?.data;
   const status = signal?.status;
-  if (status === "skipped") return <span className="text-xs text-zinc-400">Skipped — {signal.reason}</span>;
-  if (status === "error") return <span className="text-xs text-red-500">{signal.reason}</span>;
-  if (status === "unavailable") return <span className="text-xs text-zinc-400">Unavailable — {signal.reason}</span>;
+  if (status === "skipped")     return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Skipped — {signal.reason}</span>;
+  if (status === "error")       return <span style={{ fontSize: 12, color: "var(--danger)" }}>{signal.reason}</span>;
+  if (status === "unavailable") return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Unavailable — {signal.reason}</span>;
   switch (name) {
     case "scamDb":        return <ScamDbDetail data={data} />;
     case "domainAgent":   return <DomainDetail data={data} />;
@@ -241,86 +219,85 @@ function renderDetail(name, signal) {
     case "mca":           return <McaDetail data={data} />;
     case "linkedinAgent": return <LinkedinDetail data={data} />;
     case "emailAgent":    return <EmailDetail data={data} />;
-    default:              return <Raw data={data} />;
+    default: return data ? (
+      <pre style={{ fontSize: 11, color: "var(--ink-3)", lineHeight: 1.5, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", margin: 0 }}>
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    ) : <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No data</span>;
   }
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-const PILL_COLORS = {
-  gray:  "bg-zinc-100 text-zinc-600",
-  green: "bg-emerald-50 text-emerald-700",
-  red:   "bg-red-50 text-red-700",
-  amber: "bg-amber-50 text-amber-700",
-};
-function Pill({ label, color = "gray" }) {
+/* ── Tiny helpers ───────────────────────────────────────────────────────── */
+const PILL_BG = { ok: "var(--ok-soft)", danger: "var(--accent-soft)", warn: "var(--warn-soft)", neutral: "var(--neutral-soft)" };
+const PILL_COLOR = { ok: "oklch(0.4 0.12 150)", danger: "var(--accent-ink)", warn: "oklch(0.42 0.13 70)", neutral: "var(--ink-3)" };
+
+function Pill({ label, color = "neutral" }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${PILL_COLORS[color]}`}>
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      padding: "2px 8px", borderRadius: 999,
+      fontSize: 11, fontWeight: 500,
+      background: PILL_BG[color] ?? "var(--neutral-soft)",
+      color: PILL_COLOR[color] ?? "var(--ink-3)",
+    }}>
       {label}
     </span>
   );
 }
+
 function StatusChip({ ok, trueLabel, falseLabel }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs font-medium ${ok ? "text-emerald-700" : "text-red-600"}`}>
-      <span className={`h-1.5 w-1.5 rounded-full flex-none ${ok ? "bg-emerald-500" : "bg-red-500"}`} />
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, color: ok ? "oklch(0.4 0.12 150)" : "var(--danger)" }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: ok ? "var(--ok)" : "var(--danger)", flexShrink: 0 }} />
       {ok ? trueLabel : falseLabel}
     </div>
   );
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
+/* ── Main export ─────────────────────────────────────────────────────────── */
 export default function SignalRow({ name, status, summary, signal, reason }) {
   const [open, setOpen] = useState(false);
-  const meta = AGENT_META[name] || { label: name, Icon: IconSearch };
-  const st = STATUS_STYLE[status] ?? STATUS_STYLE.ok;
-  const isRunning = status === "running";
-  const hasDetail = !isRunning && signal;
+  const meta = AGENT_META[name] || { label: name, Icon: IcoSearch };
+  const isRunning  = status === "running";
+  const hasDetail  = !isRunning && !!signal;
+
+  const iconClass = `check-icon ${status === "ok" ? "ok" : status === "warn" ? "warn" : status === "danger" ? "danger" : status === "running" ? "running" : status === "error" ? "error" : "unavailable"}`;
+  const dotClass  = `check-status ${status}`;
+
+  const renderIcon = () => {
+    if (isRunning) return <IcoSpin />;
+    if (status === "ok") return <IcoCheck />;
+    if (status === "warn" || status === "danger" || status === "error") return <IcoWarn />;
+    return <meta.Icon />;
+  };
 
   return (
-    <div className="bg-white overflow-hidden">
-      {/* Header row */}
-      <button
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors"
-        onClick={() => hasDetail && setOpen((v) => !v)}
-        disabled={!hasDetail}
-        style={{ cursor: hasDetail ? "pointer" : "default" }}
-      >
-        {/* Agent icon */}
-        <span className={`shrink-0 ${isRunning ? "text-blue-400" : st.text}`}>
-          <meta.Icon />
-        </span>
-
-        {/* Name */}
-        <span className="flex-1 text-sm font-medium text-zinc-800">{meta.label}</span>
-
-        {/* Summary or reason */}
-        {summary && !isRunning && (
-          <span className="text-xs text-zinc-400 truncate max-w-[180px] hidden sm:block">{summary}</span>
-        )}
-        {isRunning && reason && (
-          <span className="text-xs text-zinc-400 truncate max-w-[180px] hidden sm:block italic">{reason}</span>
-        )}
-
-        {/* Status dot + label */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`h-2 w-2 rounded-full flex-none ${st.dot}`} />
-          {isRunning && <span className="text-xs text-blue-500">Running…</span>}
-        </div>
-
-        {/* Chevron */}
-        {hasDetail && (
-          <span className="shrink-0 text-zinc-300">
-            <IconChevron open={open} />
-          </span>
-        )}
-      </button>
-
-      {/* Expanded detail */}
+    <button
+      className={"vc-check " + (open ? "expanded" : "")}
+      onClick={() => hasDetail && setOpen((v) => !v)}
+      disabled={!hasDetail}
+      style={{ cursor: hasDetail ? "pointer" : "default" }}
+    >
+      <div className={iconClass}>{renderIcon()}</div>
+      <div className="check-name">{meta.label}</div>
+      {isRunning && reason ? (
+        <div className="check-detail" style={{ fontStyle: "italic" }}>{reason}</div>
+      ) : summary ? (
+        <div className="check-detail">{summary}</div>
+      ) : (
+        <div className="check-detail" />
+      )}
+      <span className={dotClass} />
+      {hasDetail ? (
+        <span className="check-chevron"><IcoChevron open={open} /></span>
+      ) : (
+        <span style={{ width: 13 }} />
+      )}
       {open && hasDetail && (
-        <div className="border-t border-zinc-100 px-4 py-3.5 bg-zinc-50">
+        <div className="check-body">
           {renderDetail(name, signal)}
         </div>
       )}
-    </div>
+    </button>
   );
 }
