@@ -228,7 +228,7 @@ export default function Chat() {
                 <rect x="1.5" y="10.8" width="12" height="1.2" rx="0.6" fill="currentColor"/>
               </svg>
             </button>
-            <Image src="/logo.png" alt="Flagged AI" width={48} height={48} className="rounded-md" />
+            <Image src="/logo.png" alt="Flagged AI" width={32} height={32} className="rounded-md" />
             <span className="font-semibold text-[15px] text-zinc-900">Flagged AI</span>
           </div>
 
@@ -298,20 +298,27 @@ export default function Chat() {
                 className="flex-1 resize-none bg-transparent text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 outline-none disabled:opacity-50 min-h-[24px] max-h-[160px] overflow-y-auto"
                 style={{ height: "auto" }}
               />
-              <button
-                onClick={submit}
-                disabled={!input.trim() || running}
-                className="shrink-0 h-8 w-8 rounded-full bg-zinc-900 text-white flex items-center justify-center disabled:opacity-30 hover:bg-zinc-700 transition-colors"
-                aria-label="Send"
-              >
-                {running ? (
-                  <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
+              {running ? (
+                <button
+                  onClick={() => abortRef.current?.abort()}
+                  className="shrink-0 h-8 w-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                  aria-label="Stop"
+                  title="Stop analysis"
+                >
+                  <span className="h-3 w-3 rounded-sm bg-white inline-block" />
+                </button>
+              ) : (
+                <button
+                  onClick={submit}
+                  disabled={!input.trim()}
+                  className="shrink-0 h-8 w-8 rounded-full bg-zinc-900 text-white flex items-center justify-center disabled:opacity-30 hover:bg-zinc-700 transition-colors"
+                  aria-label="Send"
+                >
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <path d="M7 1.5v11M7 1.5L3 5.5M7 1.5l4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                )}
-              </button>
+                </button>
+              )}
             </div>
             <p className="text-center text-[11px] text-zinc-400 mt-2">
               Enter to send · Shift+Enter for new line · up to 6 checks in parallel
@@ -329,8 +336,8 @@ function EmptyState({ onDemo, running }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-full px-4 py-16 gap-8">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="h-24 w-24 rounded-2xl overflow-hidden">
-          <Image src="/logo.png" alt="Flagged AI" width={96} height={96} className="object-cover" />
+        <div className="h-16 w-16 rounded-2xl overflow-hidden">
+          <Image src="/logo.png" alt="Flagged AI" width={64} height={64} className="object-cover" />
         </div>
         <h1 className="text-2xl font-semibold text-zinc-900">Flagged AI</h1>
         <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
@@ -394,8 +401,8 @@ function AssistantMessage({ msg }) {
 
   return (
     <div className="flex gap-3">
-      <div className="shrink-0 h-14 w-14 rounded-full overflow-hidden mt-0.5">
-        <Image src="/logo.png" alt="Flagged AI" width={56} height={56} className="object-cover" />
+      <div className="shrink-0 h-9 w-9 rounded-full overflow-hidden mt-0.5">
+        <Image src="/logo.png" alt="Flagged AI" width={36} height={36} className="object-cover" />
       </div>
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         <span className="text-sm font-semibold text-zinc-900">Flagged AI</span>
