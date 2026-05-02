@@ -18,6 +18,7 @@ export async function createKey({ name }) {
     createdAt: new Date(),
     lastUsedAt: null,
     requests: 0,
+    credits: 0,
     active: true,
   };
   await db.collection(COL).insertOne(doc);

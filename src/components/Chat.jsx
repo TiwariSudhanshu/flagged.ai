@@ -46,6 +46,11 @@ const IcoKey = () => (
     <circle cx="8" cy="14" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l3 3"/>
   </svg>
 );
+const IcoBilling = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20M6 14h4"/>
+  </svg>
+);
 const IcoPlus = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M12 5v14M5 12h14"/>
@@ -264,6 +269,9 @@ export default function Chat() {
           <div className="tb-spacer" />
           <Link href="/agents" className="tb-btn">
             <IcoAgents /> <span>Agents</span>
+          </Link>
+          <Link href="/billing" className="tb-btn">
+            <IcoBilling /> <span>Billing</span>
           </Link>
           <Link href="/keys" className="tb-btn">
             <IcoKey /> <span>API Keys</span>

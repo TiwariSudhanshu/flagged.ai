@@ -1,5 +1,6 @@
 import { run } from "@/lib/pipeline";
 import { validateAndTrack } from "@/lib/apiKeys";
+import { deductForCall } from "@/lib/billing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,13 @@ export async function POST(request) {
     const keyDoc = await validateAndTrack(apiKeyHeader);
     if (!keyDoc) {
       return Response.json({ error: "Invalid or revoked API key" }, { status: 401 });
+    }
+    const deduct = await deductForCall(keyDoc._id);
+    if (!deduct.ok) {
+      return Response.json(
+        { error: "Insufficient credits — visit /billing to recharge.", code: "insufficient_credits" },
+        { status: 402 }
+      );
     }
   }
 

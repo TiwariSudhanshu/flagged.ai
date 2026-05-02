@@ -43,21 +43,34 @@ function renderVerdict(verdict) {
   verdictHeadlineEl.textContent = verdict.headline || "";
 }
 
-async function getActiveTabId() {
+async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab?.id;
+  return tab;
 }
 
 usePageBtn.addEventListener("click", async () => {
   setStatus("Reading page...");
-  const tabId = await getActiveTabId();
+  const tab = await getActiveTab();
+  const tabId = tab?.id;
   if (!tabId) {
     setStatus("No active tab.");
     return;
   }
 
+  const url = tab?.url || "";
+  if (
+    url.startsWith("chrome://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("about:")
+  ) {
+    setStatus("Cannot read this page.");
+    return;
+  }
+
   chrome.tabs.sendMessage(tabId, { type: "GET_PAGE_TEXT" }, async (resp) => {
-    if (chrome.runtime.lastError || !resp?.text) {
+    const lastError = chrome.runtime.lastError;
+    if (lastError || !resp?.text) {
       try {
         const results = await chrome.scripting.executeScript({
           target: { tabId },
