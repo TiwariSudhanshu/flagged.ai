@@ -2,7 +2,9 @@ import { preprocess } from "./preprocess.js";
 import { orchestrate } from "./orchestrator.js";
 import * as scamDb from "./tools/scamDb.js";
 import * as gst from "./tools/gst.js";
+import * as mca from "./tools/mca.js";
 import * as domainAgent from "./agents/domain.js";
+import * as linkedinAgent from "./agents/linkedin.js";
 
 export async function run(input, { onEvent } = {}) {
   const emit = (e) => onEvent?.(e);
@@ -54,6 +56,13 @@ function planTasks(pre) {
   // GST registry — only meaningful when a company name is present.
   if (pre.company) {
     tasks.push({ name: "gst", run: () => gst.lookup({ company: pre.company }) });
+    tasks.push({ name: "mca", run: () => mca.lookup({ company: pre.company }) });
+  }
+
+  // LinkedIn agent — fires if we have any recruiter signal at all.
+  const hasLinkedinUrl = (pre.urls ?? []).some((u) => /linkedin\.com/i.test(u));
+  if (pre.recruiterName || hasLinkedinUrl || (pre.contacts?.emails?.length ?? 0) > 0) {
+    tasks.push({ name: "linkedinAgent", run: () => linkedinAgent.analyze(pre) });
   }
 
   return tasks;
@@ -78,6 +87,21 @@ function summarize(signal) {
     }
     case "gst":
       return signal.data?.gstin || "checked";
+    case "mca": {
+      const d = signal.data || {};
+      if (!d.found) return "no MCA record";
+      const parts = [];
+      if (d.cin) parts.push(d.cin);
+      if (d.ageDays != null) parts.push(`age ${d.ageDays}d`);
+      if (d.status) parts.push(d.status);
+      return parts.join(" · ");
+    }
+    case "linkedinAgent": {
+      const d = signal.data || {};
+      if (d.reasoning?.plausibleRecruiter === false) return "implausible recruiter";
+      if (d.reasoning?.plausibleRecruiter) return "recruiter looks ok";
+      return "checked";
+    }
     default:
       return "";
   }
