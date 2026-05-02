@@ -49,11 +49,9 @@ export async function POST(request) {
       }
       console.log(`[WhatsApp] Replied with ${messages.length} message(s) to ${from}`);
     } catch (err) {
-      console.error("[WhatsApp] Analysis error:", err?.message?.slice(0, 200));
-      await sendWhatsApp(
-        from,
-        "⚠️ *Flagged AI — Error*\n\nSomething went wrong during analysis. Please try again or visit flagged.ai for the full check."
-      );
+      const msg = err?.message ?? String(err);
+      console.error("[WhatsApp] Analysis error:", msg);
+      await sendWhatsApp(from, `⚠️ *Flagged AI — Debug Error*\n\n\`${msg.slice(0, 300)}\``);
     }
   });
 
