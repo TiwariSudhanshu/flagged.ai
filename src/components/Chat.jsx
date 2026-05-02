@@ -3,12 +3,15 @@
 import { useState, useRef } from "react";
 import VerdictCard from "./VerdictCard";
 import SignalRow from "./SignalRow";
+import RecoveryCard from "./RecoveryCard";
+import demoScenarios from "@/data/demo-scenarios.json";
 
 export default function Chat() {
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [events, setEvents] = useState([]);
   const [verdict, setVerdict] = useState(null);
+  const [recovery, setRecovery] = useState(null);
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
 
@@ -17,6 +20,7 @@ export default function Chat() {
     setRunning(true);
     setEvents([]);
     setVerdict(null);
+    setRecovery(null);
     setError(null);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -45,6 +49,7 @@ export default function Chat() {
           try {
             const ev = JSON.parse(line);
             if (ev.type === "verdict") setVerdict(ev.verdict);
+            else if (ev.type === "recovery") setRecovery(ev.recovery);
             else if (ev.type === "error") setError(ev.message);
             else setEvents((prev) => [...prev, ev]);
           } catch {
@@ -65,6 +70,7 @@ export default function Chat() {
     setInput("");
     setEvents([]);
     setVerdict(null);
+    setRecovery(null);
     setError(null);
   }
 
@@ -97,6 +103,20 @@ export default function Chat() {
         </p>
       </header>
 
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="text-zinc-500 self-center">Try a demo:</span>
+        {demoScenarios.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setInput(s.input)}
+            disabled={running}
+            className="px-3 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950">
         <textarea
           value={input}
@@ -127,7 +147,7 @@ export default function Chat() {
         </div>
       </div>
 
-      {(events.length > 0 || verdict || error) && (
+      {(events.length > 0 || verdict || recovery || error) && (
         <section className="flex flex-col gap-3">
           {events.find((e) => e.type === "preprocess") && (
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-sm">
@@ -154,6 +174,7 @@ export default function Chat() {
             ))}
           </div>
 
+          {recovery && <RecoveryCard recovery={recovery} />}
           {verdict && <VerdictCard verdict={verdict} />}
 
           {error && (

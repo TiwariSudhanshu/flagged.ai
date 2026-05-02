@@ -1,0 +1,27 @@
+[
+  {
+    "id": "obvious-scam",
+    "label": "Obvious scam (Amazon WFH)",
+    "input": "Hi! Congratulations 🎉 You've been shortlisted for Amazon Work From Home Data Entry. Salary ₹45,000/month for 2 hours daily. Limited seats! Pay ₹1,999 registration fee at amazonhr@paytm to confirm your slot today. Contact HR Priya: amazonhr.recruit@gmail.com / +91 9876543210. Apply: https://amazon-wfh-india.in"
+  },
+  {
+    "id": "gotcha",
+    "label": "Looks legit but isn't",
+    "input": "Dear Candidate, We are pleased to offer you the position of Software Engineer Trainee at Brightedge Technologies (CIN U72200KA2026PTC012345). Stipend ₹35,000/month, hybrid Bangalore. Please confirm acceptance and send a refundable ₹3,500 laptop deposit to brightedge.hr@gmail.com via UPI brightedge@ybl. Visit https://brightedge-careers.in for the full offer letter. Recruiter: Anjali Mehta (LinkedIn: https://linkedin.com/in/anjali-mehta-brightedge)"
+  },
+  {
+    "id": "legit",
+    "label": "Real-looking offer (Infosys)",
+    "input": "Dear candidate, Following our interview, Infosys Limited is pleased to offer you the role of Systems Engineer at our Bangalore campus, with a CTC of ₹3.6 LPA. Please find the offer letter attached. To accept, sign the document and reply to careers@infosys.com. Reach out for any questions. Regards, Talent Acquisition Team, Infosys Limited."
+  },
+  {
+    "id": "recovery",
+    "label": "Already paid (recovery mode)",
+    "input": "I already paid ₹3,000 yesterday to amazonhr@paytm for an Amazon work from home job. They said I'd get the laptop in 3 days. Now they're asking ₹5,000 more for the ID card. I think this is a scam. What do I do?"
+  },
+  {
+    "id": "linkedin-recruiter",
+    "label": "Suspicious recruiter on LinkedIn",
+    "input": "Hi, I'm Rahul Sharma, Senior Talent Acquisition at TCS. We're hiring freshers for our 2026 batch. Salary 6 LPA. Please share your resume on tcs.hiring2026@gmail.com or WhatsApp +91 9812345678. Also pay ₹5,000 training kit fee to confirm your seat. https://linkedin.com/in/rahul-sharma-tcs"
+  }
+]

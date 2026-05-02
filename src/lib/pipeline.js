@@ -1,5 +1,6 @@
 import { preprocess } from "./preprocess.js";
 import { orchestrate } from "./orchestrator.js";
+import { draft as draftRecovery } from "./recovery.js";
 import * as scamDb from "./tools/scamDb.js";
 import * as gst from "./tools/gst.js";
 import * as mca from "./tools/mca.js";
@@ -13,9 +14,12 @@ export async function run(input, { onEvent } = {}) {
   const pre = await preprocess(input);
   emit({ type: "preprocess", data: pre });
 
-  // 2. Recovery branch — short-circuit
+  // 2. Recovery branch — short-circuit detection, draft complaint
   if (pre.userIntent === "recovery") {
-    return { pre, signals: [], recovery: true };
+    emit({ type: "recovery_start" });
+    const recovery = await draftRecovery(pre);
+    emit({ type: "recovery", recovery });
+    return { pre, signals: [], recovery };
   }
 
   // 3. Plan + run signal tasks in parallel

@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Flagged AI
 
-## Getting Started
+The agent that sits between a scam job and its victim. Paste a suspicious offer, get a 0–100 risk score with reasoning in under 30 seconds. Web-only MVP for the agentic AI hackathon — see `doc.md` for the full product spec, `AGENTS.md` for Next.js-specific agent rules.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js 16 App Router (Route Handlers under `src/app/api`)
+- React 19 + Tailwind 4
+- Gemini 2.5 (`@google/genai`) — Flash for preprocessing, Pro for orchestration
+- MongoDB (scam DB, seed loaded automatically on first boot)
+
+## Architecture
+
+```
+input → preprocess (Flash) → planTasks → Promise.all([
+  scamDb,                  // Mongo fuzzy match on phone/email/UPI/domain/company
+  domainAgent,             // fetch + cheerio + WHOIS + Gemini reasoning
+  gst,                     // GST registry (3rd-party trial API)
+  mca,                     // Probe42 MCA lookup
+  linkedinAgent,           // ProxyCurl + reverse image + email-domain analysis
+]) → orchestrator (Pro) → streaming verdict
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+If the user has already paid, preprocessing routes them to the recovery flow instead — drafts a cybercrime.gov.in complaint, the 1930 helpline script, and bank talking points.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local        # fill GEMINI_API_KEY + MONGODB_URI at minimum
+npm install
+npm run dev
+```
 
-## Learn More
+Open http://localhost:3000. Click any "Try a demo" pill to load a built-in scenario.
 
-To learn more about Next.js, take a look at the following resources:
+### Optional API keys (real signals slot in when present)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Without these, the corresponding tools return `status: "unavailable"` and the orchestrator factors that in:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `WHOIS_API_KEY` — whoisxmlapi.com (500 calls/month free)
+- `PROBE42_API_KEY` — MCA company data
+- `PROXYCURL_API_KEY` — LinkedIn profile lookup
+- `SERPAPI_KEY` — Google reverse image
+- `GST_API_KEY` + `GST_API_URL` — Surepass / KnowYourGST trial
 
-## Deploy on Vercel
+## Endpoints
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `POST /api/analyze` — `{ input: string }`, returns NDJSON stream of `{ type: "preprocess" | "agent_start" | "agent_done" | "verdict" | "recovery" | "error", ... }`
+- `POST /api/report` — submit a known scam to extend the database: `{ company?, phones?, emails?, upis?, domains?, notes? }`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Files
+
+```
+src/
+├── app/api/analyze/route.js     streaming detection endpoint
+├── app/api/report/route.js      user-submitted scam reports
+├── components/                  Chat, VerdictCard, RecoveryCard, SignalRow
+├── data/                        seed-scams.json, demo-scenarios.json
+└── lib/
+    ├── pipeline.js              top-level orchestration
+    ├── preprocess.js            Gemini Flash extraction
+    ├── orchestrator.js          Gemini Pro reasoning
+    ├── recovery.js              already-paid complaint drafting
+    ├── gemini.js / mongo.js     clients
+    ├── schemas.js               zod schemas
+    ├── agents/{domain,linkedin}.js
+    └── tools/{scamDb,whois,gst,mca,proxycurl,reverseImage,websiteFetch}.js
+```
