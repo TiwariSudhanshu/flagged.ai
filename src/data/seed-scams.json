@@ -1,0 +1,62 @@
+[
+  {
+    "company": "Amazon Work From Home Hiring",
+    "phones": ["+919876543210", "+918001234567"],
+    "emails": ["amazonhr.recruit@gmail.com"],
+    "upis": ["amazonhr@paytm"],
+    "domains": ["amazon-wfh-india.in", "amazonhiring.co.in"],
+    "source": "r/IndianJobs",
+    "reportedAt": "2025-09-12",
+    "notes": "₹1,999 registration fee, fake Amazon WFH offer. Personal Gmail."
+  },
+  {
+    "company": "Flipkart Data Entry Jobs",
+    "phones": ["+917001234567"],
+    "emails": ["flipkart.careers01@outlook.com"],
+    "upis": ["flipkartjobs@ybl"],
+    "domains": ["flipkart-careers-india.in"],
+    "source": "cybercrime.gov.in",
+    "reportedAt": "2025-08-03",
+    "notes": "₹3,500 ID card fee. Fake Flipkart logo on offer letter."
+  },
+  {
+    "company": "TCS Fresher Recruitment 2026",
+    "phones": ["+919812345678", "+918765432101"],
+    "emails": ["tcs.hiring2026@gmail.com"],
+    "upis": [],
+    "domains": ["tcs-careers-portal.in"],
+    "source": "r/IndianJobs",
+    "reportedAt": "2026-01-20",
+    "notes": "₹5,000 training kit fee. WhatsApp-only contact."
+  },
+  {
+    "company": "Cambodia BPO Hiring",
+    "phones": ["+85512345678"],
+    "emails": ["seasiabpo.hr@protonmail.com"],
+    "upis": [],
+    "domains": ["seasia-careers.com"],
+    "source": "MEA advisory",
+    "reportedAt": "2025-11-05",
+    "notes": "Foreign-number scam compound recruitment. Major red flag."
+  },
+  {
+    "company": "Reliance Jio Form Filling Job",
+    "phones": ["+919998887776"],
+    "emails": ["jiojobs.recruiter@yahoo.com"],
+    "upis": ["jiojobs@upi"],
+    "domains": ["jio-jobs-online.in"],
+    "source": "user-report",
+    "reportedAt": "2026-02-14",
+    "notes": "₹2,000 security deposit. ₹45,000/month for 2 hours/day data entry."
+  },
+  {
+    "company": "Infosys BPO Selection",
+    "phones": ["+918887776665"],
+    "emails": ["infosys-bpo.hr@gmail.com"],
+    "upis": [],
+    "domains": ["infosys-bpo-careers.info"],
+    "source": "r/IndianJobs",
+    "reportedAt": "2025-12-09",
+    "notes": "Domain mismatch (infosys.com vs infosys-bpo-careers.info)."
+  }
+]
