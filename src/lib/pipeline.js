@@ -10,28 +10,38 @@ import * as linkedinAgent from "./agents/linkedin.js";
 export async function run(input, { onEvent } = {}) {
   const emit = (e) => onEvent?.(e);
 
+  console.log("[Pipeline] Starting analysis…");
+  console.log("[Pipeline] Input length:", input.length);
+
   // 1. Preprocess
+  console.log("[Pipeline] Step 1: Preprocessing with Gemini…");
   const pre = await preprocess(input);
+  console.log("[Pipeline] Preprocess done:", { company: pre.company, role: pre.role, intent: pre.userIntent, paymentAsk: pre.paymentAsk });
   emit({ type: "preprocess", data: pre });
 
   // 2. Recovery branch — short-circuit detection, draft complaint
   if (pre.userIntent === "recovery") {
+    console.log("[Pipeline] Recovery mode detected — drafting complaint…");
     emit({ type: "recovery_start" });
     const recovery = await draftRecovery(pre);
+    console.log("[Pipeline] Recovery draft complete");
     emit({ type: "recovery", recovery });
     return { pre, signals: [], recovery };
   }
 
   // 3. Plan + run signal tasks in parallel
   const tasks = planTasks(pre);
+  console.log("[Pipeline] Step 2: Running", tasks.length, "signal tasks:", tasks.map((t) => t.name).join(", "));
   const signals = await Promise.all(
     tasks.map(async ({ name, run: runTask }) => {
       emit({ type: "agent_start", name });
       try {
         const result = await runTask();
+        console.log(`[Pipeline] ✓ ${name}:`, result?.status, summarize(result)?.slice(0, 80));
         emit({ type: "agent_done", name, signal: result, summary: summarize(result) });
         return result;
       } catch (err) {
+        console.error(`[Pipeline] ✗ ${name} error:`, err?.message?.slice(0, 200) || err);
         const fail = { source: name, status: "error", reason: String(err?.message || err) };
         emit({ type: "agent_done", name, signal: fail, summary: fail.reason });
         return fail;
@@ -40,7 +50,9 @@ export async function run(input, { onEvent } = {}) {
   );
 
   // 4. Orchestrate
+  console.log("[Pipeline] Step 3: Orchestrating final verdict with Gemini…");
   const verdict = await orchestrate({ pre, signals });
+  console.log("[Pipeline] ✓ Verdict:", verdict.verdict, "score:", verdict.score);
   emit({ type: "verdict", verdict });
 
   return { pre, signals, verdict };

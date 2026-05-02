@@ -26,7 +26,9 @@ export async function POST(request) {
       };
       try {
         await run(input, { onEvent: send });
+        console.log("[API /analyze] Stream completed successfully");
       } catch (err) {
+        console.error("[API /analyze] Pipeline error:", err?.message?.slice(0, 300) || err);
         send({ type: "error", message: err?.message || "unexpected failure" });
       } finally {
         controller.close();
