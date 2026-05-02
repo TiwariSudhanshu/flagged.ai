@@ -112,7 +112,6 @@ export default function Chat() {
           <div className="flex gap-2">
             <button
               onClick={reset}
-              disabled={running && !abortRef.current}
               className="text-sm px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900"
             >
               Reset
