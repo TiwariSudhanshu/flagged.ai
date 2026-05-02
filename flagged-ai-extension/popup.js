@@ -1,0 +1,122 @@
+const inputEl = document.getElementById("input");
+const statusEl = document.getElementById("statusText");
+const progressEl = document.getElementById("progressText");
+const usePageBtn = document.getElementById("usePage");
+const analyzeBtn = document.getElementById("analyze");
+const verdictEl = document.getElementById("verdict");
+const verdictScoreEl = document.getElementById("verdictScore");
+const verdictLabelEl = document.getElementById("verdictLabel");
+const verdictHeadlineEl = document.getElementById("verdictHeadline");
+
+let totalChecks = 0;
+let completedChecks = 0;
+
+const API_BASE = "http://localhost:3000";
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+function setProgress() {
+  progressEl.textContent = `${completedChecks}/${totalChecks} checks completed`;
+}
+
+function clearVerdict() {
+  verdictEl.classList.add("hidden");
+  verdictScoreEl.textContent = "--";
+  verdictLabelEl.textContent = "--";
+  verdictHeadlineEl.textContent = "";
+  totalChecks = 0;
+  completedChecks = 0;
+  setProgress();
+}
+
+function renderVerdict(verdict) {
+  if (!verdict) return;
+  verdictEl.classList.remove("hidden");
+  verdictScoreEl.textContent = Number.isFinite(verdict.score)
+    ? verdict.score
+    : "--";
+  verdictLabelEl.textContent = verdict.verdict
+    ? verdict.verdict.replace(/_/g, " ")
+    : "--";
+  verdictHeadlineEl.textContent = verdict.headline || "";
+}
+
+async function getActiveTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab?.id;
+}
+
+usePageBtn.addEventListener("click", async () => {
+  const tabId = await getActiveTabId();
+  if (!tabId) return;
+
+  chrome.tabs.sendMessage(tabId, { type: "GET_PAGE_TEXT" }, (resp) => {
+    inputEl.value = resp?.text || "";
+  });
+});
+
+analyzeBtn.addEventListener("click", async () => {
+  const input = inputEl.value.trim();
+  if (!input) return;
+
+  clearVerdict();
+  setStatus("Analyzing...");
+
+  const res = await fetch(`${API_BASE}/api/analyze`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ input }),
+  });
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    setStatus("No stream returned.");
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let idx;
+    while ((idx = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, idx).trim();
+      buffer = buffer.slice(idx + 1);
+      if (!line) continue;
+
+      try {
+        const event = JSON.parse(line);
+        if (event.type === "verdict") {
+          renderVerdict(event.verdict);
+          setStatus("Done");
+        } else if (event.type === "plan") {
+          const names = (event.agents || []).map((a) => a.name).filter(Boolean);
+          totalChecks = names.length;
+          completedChecks = 0;
+          setProgress();
+        } else if (event.type === "agent_start") {
+          setStatus("Analyzing...");
+        } else if (event.type === "agent_done") {
+          completedChecks += 1;
+          setProgress();
+        } else if (event.type === "recovery") {
+          setStatus("Recovery mode");
+        } else if (event.type === "error") {
+          setStatus(`Error: ${event.message}`);
+        } else {
+          setStatus("Analyzing...");
+        }
+      } catch {
+        setStatus("Analyzing...");
+      }
+    }
+  }
+});

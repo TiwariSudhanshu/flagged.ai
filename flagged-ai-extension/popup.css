@@ -1,0 +1,137 @@
+:root {
+  --bg: #0f1217;
+  --panel: #171b22;
+  --text: #e8edf5;
+  --muted: #9aa6b2;
+  --accent: #2ec4b6;
+  --danger: #f25f5c;
+  --border: #262c36;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "SF Pro Text", Arial, sans-serif;
+}
+
+#app {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+
+.sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  resize: vertical;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+button {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #06201d;
+  font-weight: 600;
+}
+
+button.ghost {
+  background: transparent;
+}
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0b0e13;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.status #progressText {
+  color: var(--muted);
+}
+
+.verdict {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.verdict.hidden {
+  display: none;
+}
+
+.verdict-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.score {
+  font-size: 22px;
+  font-weight: 700;
+  background: #0b0e13;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  min-width: 52px;
+  text-align: center;
+}
+
+.label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+.headline {
+  font-size: 13px;
+  font-weight: 600;
+}

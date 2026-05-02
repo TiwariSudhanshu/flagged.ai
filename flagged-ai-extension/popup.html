@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Flagged AI</title>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Flagged AI</h1>
+      <p class="sub">Job scam check in seconds.</p>
+      <textarea
+        id="input"
+        placeholder="Paste a job post or click 'Use Page'..."
+      ></textarea>
+      <div class="row">
+        <button id="usePage" class="ghost">Use Page</button>
+        <button id="analyze" class="primary">Analyze</button>
+      </div>
+      <div class="status">
+        <div id="statusText">Ready.</div>
+        <div id="progressText">0/0 checks completed</div>
+      </div>
+      <div id="verdict" class="verdict hidden">
+        <div class="verdict-head">
+          <div class="score" id="verdictScore">--</div>
+          <div class="label" id="verdictLabel">--</div>
+        </div>
+        <div class="headline" id="verdictHeadline"></div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
