@@ -1,27 +1,50 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import VerdictCard from "./VerdictCard";
 import SignalRow from "./SignalRow";
 import RecoveryCard from "./RecoveryCard";
 import demoScenarios from "@/data/demo-scenarios.json";
 
+let msgId = 0;
+function uid() { return ++msgId; }
+
 export default function Chat() {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
-  const [events, setEvents] = useState([]);
-  const [verdict, setVerdict] = useState(null);
-  const [recovery, setRecovery] = useState(null);
-  const [error, setError] = useState(null);
   const abortRef = useRef(null);
+  const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
 
-  async function analyze() {
-    if (!input.trim() || running) return;
+  // Auto-scroll on new content
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
+
+  const patchLast = useCallback((fn) => {
+    setMessages((prev) => {
+      const next = [...prev];
+      next[next.length - 1] = fn(next[next.length - 1]);
+      return next;
+    });
+  }, []);
+
+  async function submit() {
+    const text = input.trim();
+    if (!text || running) return;
+
+    const userMsg = { id: uid(), role: "user", text };
+    const aiMsg = { id: uid(), role: "assistant", events: [], verdict: null, recovery: null, error: null, done: false };
+
+    setMessages((prev) => [...prev, userMsg, aiMsg]);
+    setInput("");
     setRunning(true);
-    setEvents([]);
-    setVerdict(null);
-    setRecovery(null);
-    setError(null);
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -29,15 +52,15 @@ export default function Chat() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input }),
+        body: JSON.stringify({ input: text }),
         signal: controller.signal,
       });
-      if (!res.ok || !res.body) {
-        throw new Error(`Request failed: ${res.status}`);
-      }
+      if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -48,171 +71,289 @@ export default function Chat() {
           if (!line.trim()) continue;
           try {
             const ev = JSON.parse(line);
-            if (ev.type === "verdict") setVerdict(ev.verdict);
-            else if (ev.type === "recovery") setRecovery(ev.recovery);
-            else if (ev.type === "error") setError(ev.message);
-            else setEvents((prev) => [...prev, ev]);
+            if (ev.type === "verdict") {
+              patchLast((m) => ({ ...m, verdict: ev.verdict }));
+            } else if (ev.type === "recovery") {
+              patchLast((m) => ({ ...m, recovery: ev.recovery }));
+            } else if (ev.type === "error") {
+              patchLast((m) => ({ ...m, error: ev.message }));
+            } else {
+              patchLast((m) => ({ ...m, events: [...m.events, ev] }));
+            }
           } catch {
-            // ignore
+            // ignore parse errors
           }
         }
       }
     } catch (err) {
-      if (err.name !== "AbortError") setError(err.message);
+      if (err.name !== "AbortError") {
+        patchLast((m) => ({ ...m, error: err.message }));
+      }
     } finally {
+      patchLast((m) => ({ ...m, done: true }));
       setRunning(false);
       abortRef.current = null;
     }
   }
 
-  function reset() {
-    abortRef.current?.abort();
-    setInput("");
-    setEvents([]);
-    setVerdict(null);
-    setRecovery(null);
-    setError(null);
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
   }
 
-  const signalEvents = events.filter(
-    (e) => e.type === "agent_done" || e.type === "agent_skipped",
-  );
-  const inProgress = events
-    .filter((e) => e.type === "agent_start")
-    .map((e) => e.name)
-    .filter(
-      (name) =>
-        !signalEvents.some((s) => s.name === name),
-    );
+  function newChat() {
+    abortRef.current?.abort();
+    setMessages([]);
+    setInput("");
+    setRunning(false);
+  }
+
+  const isEmpty = messages.length === 0;
 
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 px-4 py-8 sm:py-16">
-      <header className="flex flex-col gap-2">
+    <div className="flex flex-col h-full bg-white">
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-[#e4e4e7] shrink-0">
         <div className="flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
-          <span className="text-xs uppercase tracking-widest text-zinc-500">
-            Flagged AI
-          </span>
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />
+          <span className="font-semibold text-[15px] text-[#0d0d0d]">Flagged AI</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
-          The agent between a scam job and its victim.
-        </h1>
-        <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
-          Paste a suspicious job message, a recruiter URL, or describe the offer.
-          We&apos;ll score it 0–100 and tell you exactly what&apos;s wrong.
-        </p>
+        {!isEmpty && (
+          <button
+            onClick={newChat}
+            className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M8 2.75a.75.75 0 0 0-1.5 0V7H2.75a.75.75 0 0 0 0 1.5H6.5v4.25a.75.75 0 0 0 1.5 0V8.5h4.25a.75.75 0 0 0 0-1.5H8V2.75Z" fill="currentColor"/></svg>
+            New check
+          </button>
+        )}
       </header>
 
-      <div className="flex flex-wrap gap-2 text-xs">
-        <span className="text-zinc-500 self-center">Try a demo:</span>
-        {demoScenarios.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setInput(s.input)}
-            disabled={running}
-            className="px-3 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40"
-          >
-            {s.label}
-          </button>
-        ))}
+      {/* Messages or empty state */}
+      <div className="flex-1 overflow-y-auto">
+        {isEmpty ? (
+          <EmptyState
+            onDemo={(text) => setInput(text)}
+            running={running}
+          />
+        ) : (
+          <div className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6">
+            {messages.map((msg) =>
+              msg.role === "user" ? (
+                <UserMessage key={msg.id} text={msg.text} />
+              ) : (
+                <AssistantMessage key={msg.id} msg={msg} />
+              ),
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste the WhatsApp message, the offer letter text, the LinkedIn URL, or the recruiter's pitch…"
-          className="w-full min-h-32 resize-y bg-transparent outline-none text-sm leading-6 placeholder:text-zinc-400"
-          disabled={running}
-        />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-zinc-500">
-            {input.length} chars · runs ~6 checks in parallel
-          </span>
-          <div className="flex gap-2">
+      {/* Input bar */}
+      <div className="shrink-0 border-t border-[#e4e4e7] bg-white px-4 py-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-end gap-3 rounded-2xl border border-[#e4e4e7] bg-white px-4 py-3 shadow-sm focus-within:border-[#a1a1aa] transition-colors">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Paste a suspicious job offer, recruiter message, or LinkedIn URL…"
+              rows={1}
+              disabled={running}
+              className="flex-1 resize-none bg-transparent text-sm leading-6 text-[#0d0d0d] placeholder:text-[#a1a1aa] outline-none disabled:opacity-50 min-h-[24px] max-h-[160px] overflow-y-auto"
+              style={{ height: "auto" }}
+            />
             <button
-              onClick={reset}
-              className="text-sm px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-            >
-              Reset
-            </button>
-            <button
-              onClick={analyze}
+              onClick={submit}
               disabled={!input.trim() || running}
-              className="text-sm px-4 py-1.5 rounded-full bg-black text-white dark:bg-white dark:text-black disabled:opacity-40"
+              className="shrink-0 h-8 w-8 rounded-full bg-[#0d0d0d] text-white flex items-center justify-center disabled:opacity-30 hover:bg-[#3f3f46] transition-colors"
+              aria-label="Send"
             >
-              {running ? "Analyzing…" : "Analyze"}
+              {running ? (
+                <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 1.5v11M7 1.5L3 5.5M7 1.5l4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
             </button>
           </div>
+          <p className="text-center text-[11px] text-[#a1a1aa] mt-2">
+            Enter to send · Shift+Enter for new line · runs up to 6 checks in parallel
+          </p>
         </div>
       </div>
-
-      {(events.length > 0 || verdict || recovery || error) && (
-        <section className="flex flex-col gap-3">
-          {events.find((e) => e.type === "preprocess") && (
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-sm">
-              <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">
-                Extracted
-              </div>
-              <PreprocessSummary
-                data={events.find((e) => e.type === "preprocess").data}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            {signalEvents.map((e, i) => (
-              <SignalRow
-                key={`${e.name}-${i}`}
-                name={e.name}
-                status={e.signal?.status ?? "ok"}
-                summary={e.summary}
-              />
-            ))}
-            {inProgress.map((name) => (
-              <SignalRow key={`pending-${name}`} name={name} status="running" />
-            ))}
-          </div>
-
-          {recovery && <RecoveryCard recovery={recovery} />}
-          {verdict && <VerdictCard verdict={verdict} />}
-
-          {error && (
-            <div className="rounded-xl border border-red-300 bg-red-50 dark:bg-red-950/40 dark:border-red-900 text-red-800 dark:text-red-200 px-4 py-3 text-sm">
-              {error}
-            </div>
-          )}
-        </section>
-      )}
     </div>
   );
 }
 
-function PreprocessSummary({ data }) {
-  if (!data) return null;
-  const rows = [
-    ["Intent", data.userIntent],
-    ["Company", data.company],
-    ["Role", data.role],
-    ["Salary claimed", data.salaryClaimed],
-    ["Recruiter", data.recruiterName],
-    ["Payment ask", data.paymentAsk ? `Yes${data.paymentAmount ? ` (${data.paymentAmount})` : ""}` : "No"],
-    ["URLs", data.urls?.join(", ")],
-    ["Phones", data.contacts?.phones?.join(", ")],
-    ["Red flags", data.redFlagPhrases?.join(" · ")],
-  ].filter(([, v]) => v && (Array.isArray(v) ? v.length : true));
+function EmptyState({ onDemo, running }) {
   return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-      {rows.map(([k, v]) => (
-        <Fragment key={k}>
-          <dt className="text-zinc-500">{k}</dt>
-          <dd className="text-zinc-900 dark:text-zinc-100">{v}</dd>
-        </Fragment>
-      ))}
-    </dl>
+    <div className="flex flex-col items-center justify-center min-h-full px-4 py-16 gap-8">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="h-12 w-12 rounded-2xl bg-[#f4f4f5] flex items-center justify-center">
+          <span className="h-4 w-4 rounded-full bg-red-500 inline-block" />
+        </div>
+        <h1 className="text-2xl font-semibold text-[#0d0d0d]">Flagged AI</h1>
+        <p className="text-[#71717a] text-sm max-w-sm leading-relaxed">
+          The agent between a scam job and its victim. Paste a suspicious
+          offer — get a 0–100 risk score with reasoning in under 30 seconds.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-xs text-[#a1a1aa] uppercase tracking-wider">Try a demo</p>
+        <div className="flex flex-wrap justify-center gap-2 max-w-lg">
+          {demoScenarios.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => onDemo(s.input)}
+              disabled={running}
+              className="px-3.5 py-1.5 rounded-full border border-[#e4e4e7] text-sm text-[#3f3f46] hover:bg-[#f4f4f5] hover:border-[#d4d4d8] transition-colors disabled:opacity-40"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function Fragment({ children }) {
-  return <>{children}</>;
+function UserMessage({ text }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[80%] bg-[#f4f4f5] rounded-2xl rounded-br-sm px-4 py-3 text-sm text-[#0d0d0d] leading-relaxed whitespace-pre-wrap break-words">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function AssistantMessage({ msg }) {
+  const { events, verdict, recovery, error, done } = msg;
+
+  const preprocessEvent = events.find((e) => e.type === "preprocess");
+  const signalDone = events.filter((e) => e.type === "agent_done" || e.type === "agent_skipped");
+  const signalRunning = events
+    .filter((e) => e.type === "agent_start")
+    .map((e) => e.name)
+    .filter((n) => !signalDone.some((s) => s.name === n));
+
+  const isThinking = !done && events.length === 0;
+  const hasContent = preprocessEvent || signalDone.length > 0 || signalRunning.length > 0 || verdict || recovery || error;
+
+  return (
+    <div className="flex gap-3">
+      {/* Avatar */}
+      <div className="shrink-0 h-7 w-7 rounded-full bg-[#0d0d0d] flex items-center justify-center mt-0.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-400 inline-block" />
+      </div>
+
+      <div className="flex-1 flex flex-col gap-3 min-w-0">
+        <span className="text-sm font-semibold text-[#0d0d0d]">Flagged AI</span>
+
+        {isThinking && (
+          <div className="flex items-center gap-2 text-sm text-[#71717a]">
+            <ThinkingDots />
+            <span>Analyzing…</span>
+          </div>
+        )}
+
+        {hasContent && (
+          <div className="flex flex-col gap-3">
+            {preprocessEvent && (
+              <PreprocessBadges data={preprocessEvent.data} />
+            )}
+
+            {(signalDone.length > 0 || signalRunning.length > 0) && (
+              <div className="flex flex-col gap-1.5">
+                {signalDone.map((e, i) => (
+                  <SignalRow
+                    key={`${e.name}-${i}`}
+                    name={e.name}
+                    status={e.signal?.status ?? "ok"}
+                    summary={e.summary}
+                  />
+                ))}
+                {signalRunning.map((name) => (
+                  <SignalRow key={`r-${name}`} name={name} status="running" />
+                ))}
+              </div>
+            )}
+
+            {recovery && <RecoveryCard recovery={recovery} />}
+            {verdict && <VerdictCard verdict={verdict} />}
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+                {error}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <span className="flex gap-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-[#a1a1aa] animate-bounce"
+          style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.9s" }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function PreprocessBadges({ data }) {
+  if (!data) return null;
+  const badges = [];
+  if (data.paymentAsk) {
+    badges.push({ label: `Payment ask${data.paymentAmount ? ` · ${data.paymentAmount}` : ""}`, color: "red" });
+  }
+  if (data.userIntent === "recovery") {
+    badges.push({ label: "Recovery mode", color: "amber" });
+  }
+  if (data.redFlagPhrases?.length) {
+    badges.push({ label: `${data.redFlagPhrases.length} red flag phrase${data.redFlagPhrases.length > 1 ? "s" : ""}`, color: "orange" });
+  }
+  if (data.company) {
+    badges.push({ label: data.company, color: "gray" });
+  }
+  if (data.role) {
+    badges.push({ label: data.role, color: "gray" });
+  }
+
+  if (!badges.length) return null;
+
+  const colors = {
+    red: "bg-red-50 text-red-700 border-red-200",
+    amber: "bg-amber-50 text-amber-700 border-amber-200",
+    orange: "bg-orange-50 text-orange-700 border-orange-200",
+    gray: "bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]",
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {badges.map((b, i) => (
+        <span key={i} className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${colors[b.color]}`}>
+          {b.label}
+        </span>
+      ))}
+    </div>
+  );
 }
