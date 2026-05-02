@@ -92,6 +92,73 @@ const IcoUser = () => (
   </svg>
 );
 
+/* ── Casual message detection ───────────────────────────────────────────── */
+const CASUAL_PATTERNS = [
+  /^(hi+|hey+|hello+|helo|yo+|sup|howdy|hiya|hai)[\s!?.]*$/i,
+  /^how (are|r) (you|u|ya|doing)[\s!?.]*$/i,
+  /^(how'?s it going|what'?s up|wassup|wsp|kya haal|kaise ho)[\s!?.]*$/i,
+  /^(good (morning|afternoon|evening|night)|gm|gn|good day)[\s!?.]*$/i,
+  /^(thanks?|thank you|ty|thx|thank u|thnk?s|shukriya|dhanyawad)[\s!?.]*$/i,
+  /^(ok(ay)?|k+|cool|great|nice|awesome|perfect|sounds good|alright|sure|got it)[\s!?.]*$/i,
+  /^(bye+|goodbye|see (you|ya|u)|cya|ttyl|later|take care|alvida)[\s!?.]*$/i,
+  /^(who are you|what (are|is|can) you|what do you do|tell me about yourself|about you)[\s!?.]*$/i,
+  /^(help|help me|how (does this work|do i use this|to use)|what can you do)[\s!?.]*$/i,
+  /^(lol|lmao|haha+|hehe+|xd|😂+|🤣+|😊+|👍+)[\s!?.]*$/i,
+  /^(yes|no|yeah|nope|yep|nah|yup)[\s!?.]*$/i,
+  /^(wow|omg|oh|ah|nice one|good job|well done|impressive)[\s!?.]*$/i,
+  /^(test(ing)?|hello world|ping|check)[\s!?.]*$/i,
+];
+
+const CASUAL_RESPONSES = {
+  greeting: [
+    "Hey! 👋 I'm Flagged AI . I detect job scams and shady recruiter messages.\n\nPaste a suspicious job offer, recruiter email, or LinkedIn message and I'll run it through 6 checks for you.",
+    "Hi there! Send me that sketchy job posting and I'll verify it across company registries, domain databases, and known scam lists.",
+    "Hello! I'm built to spot job scams before they can do damage. Paste any suspicious offer and I'll analyze it.",
+  ],
+  thanks: [
+    "Anytime! Stay safe out there  job scams are more sophisticated than ever these days. 🛡️",
+    "Happy to help! If you get another suspicious message, just paste it here.",
+    "No problem! Always verify before sharing documents or paying any fees.",
+  ],
+  bye: [
+    "Take care! Remember  if any job offer sounds too good to be true, paste it here first. 👋",
+    "Bye! Stay sharp out there. Real recruiters never ask for money upfront.",
+    "See you! Always do a quick check before responding to unknown recruiters.",
+  ],
+  help: [
+    "Here's what I can do:\n\n• **Analyze job postings** — paste any text from Naukri, LinkedIn, WhatsApp, email\n• **Check companies** — verify via GST & MCA registries\n• **Check domains** — domain age, legitimacy, WHOIS\n• **Check emails** — freemail, disposable, fake corporate domains\n• **Cross-reference scam databases** — phones, UPI IDs, emails\n• **Score 0–100** — scam probability with key findings\n\nJust paste the suspicious content below ↓",
+  ],
+  whoami: [
+    "I'm **Flagged AI**  a job scam detector built to protect Indian job seekers from fraudulent offers.\n\nI verify companies via GST/MCA registries, check domain ages, cross-reference crowd-sourced scam databases, and use AI to flag suspicious patterns in recruiter messages.\n\nPaste any suspicious job offer to get started.",
+  ],
+  general: [
+    "I'm specialized in detecting job scams! Paste a suspicious job offer, recruiter message, or company name and I'll analyze it. 🔍",
+    "That's not quite in my wheelhouse — but I'm great at spotting fake job offers! Paste one below and I'll break it down.",
+    "I'm a job scam detector! Try pasting a suspicious recruiter message or job posting and I'll verify it for you.",
+  ],
+};
+
+function isCasualMessage(text) {
+  return CASUAL_PATTERNS.some((p) => p.test(text.trim()));
+}
+
+function getCasualResponse(text) {
+  const t = text.toLowerCase().trim();
+  if (/^(hi|hey|hello|helo|yo|sup|howdy|hiya|hai|gm|gn|good (morning|afternoon|evening|night))/.test(t))
+    return pick(CASUAL_RESPONSES.greeting);
+  if (/(thanks?|thank you|ty|thx|shukriya|dhanyawad)/.test(t))
+    return pick(CASUAL_RESPONSES.thanks);
+  if (/(bye|goodbye|see you|cya|ttyl|later|take care|alvida)/.test(t))
+    return pick(CASUAL_RESPONSES.bye);
+  if (/(help|how does|what can you|how do i|how to use)/.test(t))
+    return pick(CASUAL_RESPONSES.help);
+  if (/(who are you|what are you|tell me about|about you|what do you do)/.test(t))
+    return pick(CASUAL_RESPONSES.whoami);
+  return pick(CASUAL_RESPONSES.general);
+}
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
 /* ── Demo suggestions ───────────────────────────────────────────────────── */
 const SUGG_ICONS = [IcoMail, IcoLink, IcoGlobe, IcoUser];
 
@@ -148,18 +215,27 @@ export default function Chat() {
     const text = input.trim();
     if (!text || running) return;
 
+    const userMsg = { id: uid(), role: "user", text, ts: Date.now() };
+    setInput("");
+    if (textareaRef.current) { textareaRef.current.style.height = "22px"; }
+
+    // Handle casual / conversational messages without calling the analysis API
+    if (isCasualMessage(text)) {
+      const reply = getCasualResponse(text);
+      const aiMsg = { id: uid(), role: "assistant", casualText: reply, events: [], verdict: null, recovery: null, error: null, done: true, ts: Date.now() };
+      setMessages([userMsg, aiMsg]);
+      return;
+    }
+
     const chatId = genId();
     currentIdRef.current = chatId;
     startTimeRef.current = Date.now();
     setActiveId(chatId);
 
-    const userMsg = { id: uid(), role: "user", text, ts: Date.now() };
     const aiMsg   = { id: uid(), role: "assistant", events: [], verdict: null, recovery: null, error: null, done: false, ts: Date.now() };
 
     setMessages([userMsg, aiMsg]);
-    setInput("");
     setRunning(true);
-    if (textareaRef.current) { textareaRef.current.style.height = "22px"; }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -377,7 +453,34 @@ function UserMsgEl({ msg }) {
 
 /* ── Assistant message ──────────────────────────────────────────────────── */
 function AssistantMsgEl({ msg }) {
-  const { events, verdict, recovery, error, done, ts } = msg;
+  const { events, verdict, recovery, error, done, ts, casualText } = msg;
+
+  // Casual / conversational reply — no analysis cards needed
+  if (casualText) {
+    return (
+      <div className="msg-ai">
+        <div className="ai-avatar">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Flagged AI" width={32} height={32} style={{ objectFit: "cover", display: "block" }} />
+        </div>
+        <div className="ai-body">
+          <div className="ai-head">
+            <span>Flagged AI</span>
+            <span className="timestamp">{fmtTime(ts ?? Date.now())}</span>
+          </div>
+          <div style={{
+            background: "var(--bg-elev)", border: "1px solid var(--line)",
+            borderRadius: "4px 18px 18px 18px",
+            padding: "13px 16px", fontSize: 14, lineHeight: 1.65,
+            color: "var(--ink-1)", whiteSpace: "pre-wrap",
+            boxShadow: "var(--shadow-xs)", maxWidth: 480,
+          }}>
+            {casualText.replace(/\*\*(.*?)\*\*/g, "$1")}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const preprocessEvent = events.find((e) => e.type === "preprocess");
   const planEvent       = events.find((e) => e.type === "plan");
