@@ -228,7 +228,7 @@ export default function Chat() {
                 <rect x="1.5" y="10.8" width="12" height="1.2" rx="0.6" fill="currentColor"/>
               </svg>
             </button>
-            <Image src="/logo.png" alt="Flagged AI" width={24} height={24} className="rounded-md" />
+            <Image src="/logo.png" alt="Flagged AI" width={48} height={48} className="rounded-md" />
             <span className="font-semibold text-[15px] text-zinc-900">Flagged AI</span>
           </div>
 
@@ -329,8 +329,8 @@ function EmptyState({ onDemo, running }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-full px-4 py-16 gap-8">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="h-12 w-12 rounded-2xl overflow-hidden">
-          <Image src="/logo.png" alt="Flagged AI" width={48} height={48} className="object-cover" />
+        <div className="h-24 w-24 rounded-2xl overflow-hidden">
+          <Image src="/logo.png" alt="Flagged AI" width={96} height={96} className="object-cover" />
         </div>
         <h1 className="text-2xl font-semibold text-zinc-900">Flagged AI</h1>
         <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
@@ -394,8 +394,8 @@ function AssistantMessage({ msg }) {
 
   return (
     <div className="flex gap-3">
-      <div className="shrink-0 h-7 w-7 rounded-full overflow-hidden mt-0.5">
-        <Image src="/logo.png" alt="Flagged AI" width={28} height={28} className="object-cover" />
+      <div className="shrink-0 h-14 w-14 rounded-full overflow-hidden mt-0.5">
+        <Image src="/logo.png" alt="Flagged AI" width={56} height={56} className="object-cover" />
       </div>
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         <span className="text-sm font-semibold text-zinc-900">Flagged AI</span>
