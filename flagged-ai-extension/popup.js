@@ -49,11 +49,36 @@ async function getActiveTabId() {
 }
 
 usePageBtn.addEventListener("click", async () => {
+  setStatus("Reading page...");
   const tabId = await getActiveTabId();
-  if (!tabId) return;
+  if (!tabId) {
+    setStatus("No active tab.");
+    return;
+  }
 
-  chrome.tabs.sendMessage(tabId, { type: "GET_PAGE_TEXT" }, (resp) => {
-    inputEl.value = resp?.text || "";
+  chrome.tabs.sendMessage(tabId, { type: "GET_PAGE_TEXT" }, async (resp) => {
+    if (chrome.runtime.lastError || !resp?.text) {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => {
+            const selection = window.getSelection()?.toString().trim();
+            if (selection) return selection;
+            const bodyText = document.body?.innerText || "";
+            return bodyText.slice(0, 12000);
+          },
+        });
+        const text = results?.[0]?.result || "";
+        inputEl.value = text;
+        setStatus(text ? "Page captured." : "No text found on page.");
+      } catch (err) {
+        setStatus("Cannot read this page.");
+      }
+      return;
+    }
+
+    inputEl.value = resp.text;
+    setStatus(resp.text ? "Page captured." : "No text found on page.");
   });
 });
 
