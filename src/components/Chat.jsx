@@ -5,20 +5,56 @@ import Link from "next/link";
 import VerdictCard from "./VerdictCard";
 import SignalRow from "./SignalRow";
 import RecoveryCard from "./RecoveryCard";
+import Sidebar from "./Sidebar";
 import demoScenarios from "@/data/demo-scenarios.json";
+
+const LS_HISTORY = "flaggedai_history";
+const MAX_HISTORY = 50;
 
 let msgId = 0;
 function uid() { return ++msgId; }
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function makeTitle(text) {
+  return text.trim().slice(0, 60) + (text.trim().length > 60 ? "…" : "");
+}
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_HISTORY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history) {
+  try {
+    localStorage.setItem(LS_HISTORY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+  } catch {}
+}
 
 export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [history, setHistory] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+
   const abortRef = useRef(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+  const currentIdRef = useRef(null);
 
-  // Auto-scroll on new content
+  // Load history from localStorage on mount
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
+
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
@@ -31,23 +67,56 @@ export default function Chat() {
     });
   }, []);
 
+  // Save conversation to history once analysis is complete
+  function persistChat(msgs, chatId) {
+    if (!chatId || msgs.length < 2) return;
+    const userMsg = msgs.find((m) => m.role === "user");
+    if (!userMsg) return;
+    const aiMsg = msgs.findLast?.((m) => m.role === "assistant") ?? msgs[msgs.length - 1];
+    const verdict = aiMsg?.verdict?.verdict ?? null;
+
+    const entry = {
+      id: chatId,
+      title: makeTitle(userMsg.text),
+      createdAt: Date.now(),
+      verdict,
+      // Store stripped messages (no raw events) to keep localStorage lean
+      messages: msgs.map((m) =>
+        m.role === "assistant"
+          ? { ...m, events: [], done: true }
+          : m,
+      ),
+    };
+
+    setHistory((prev) => {
+      const filtered = prev.filter((h) => h.id !== chatId);
+      const next = [entry, ...filtered];
+      saveHistory(next);
+      return next;
+    });
+  }
+
   async function submit() {
     const text = input.trim();
     if (!text || running) return;
 
-    const userMsg = { id: uid(), role: "user", text };
-    const aiMsg = { id: uid(), role: "assistant", events: [], verdict: null, recovery: null, error: null, done: false };
+    const chatId = genId();
+    currentIdRef.current = chatId;
+    setActiveId(chatId);
 
-    setMessages((prev) => [...prev, userMsg, aiMsg]);
+    const userMsg = { id: uid(), role: "user", text };
+    const aiMsg  = { id: uid(), role: "assistant", events: [], verdict: null, recovery: null, error: null, done: false };
+
+    setMessages([userMsg, aiMsg]);
     setInput("");
     setRunning(true);
 
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     const controller = new AbortController();
     abortRef.current = controller;
+
+    let finalMessages = [userMsg, aiMsg];
 
     try {
       const res = await fetch("/api/analyze", {
@@ -58,7 +127,7 @@ export default function Chat() {
       });
       if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
 
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
 
@@ -73,35 +142,31 @@ export default function Chat() {
           try {
             const ev = JSON.parse(line);
             if (ev.type === "verdict") {
-              patchLast((m) => ({ ...m, verdict: ev.verdict }));
+              patchLast((m) => { const u = { ...m, verdict: ev.verdict }; finalMessages = [userMsg, u]; return u; });
             } else if (ev.type === "recovery") {
-              patchLast((m) => ({ ...m, recovery: ev.recovery }));
+              patchLast((m) => { const u = { ...m, recovery: ev.recovery }; finalMessages = [userMsg, u]; return u; });
             } else if (ev.type === "error") {
-              patchLast((m) => ({ ...m, error: ev.message }));
+              patchLast((m) => { const u = { ...m, error: ev.message }; finalMessages = [userMsg, u]; return u; });
             } else {
-              patchLast((m) => ({ ...m, events: [...m.events, ev] }));
+              patchLast((m) => { const u = { ...m, events: [...m.events, ev] }; finalMessages = [userMsg, u]; return u; });
             }
-          } catch {
-            // ignore parse errors
-          }
+          } catch {}
         }
       }
     } catch (err) {
       if (err.name !== "AbortError") {
-        patchLast((m) => ({ ...m, error: err.message }));
+        patchLast((m) => { const u = { ...m, error: err.message }; finalMessages = [userMsg, u]; return u; });
       }
     } finally {
-      patchLast((m) => ({ ...m, done: true }));
+      patchLast((m) => { const u = { ...m, done: true }; finalMessages = [userMsg, u]; return u; });
       setRunning(false);
       abortRef.current = null;
+      persistChat(finalMessages, chatId);
     }
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
   }
 
   function newChat() {
@@ -109,141 +174,178 @@ export default function Chat() {
     setMessages([]);
     setInput("");
     setRunning(false);
+    setActiveId(null);
+    currentIdRef.current = null;
+  }
+
+  function loadChat(id) {
+    const item = history.find((h) => h.id === id);
+    if (!item) return;
+    abortRef.current?.abort();
+    setMessages(item.messages);
+    setActiveId(id);
+    setRunning(false);
+  }
+
+  function deleteChat(id) {
+    setHistory((prev) => {
+      const next = prev.filter((h) => h.id !== id);
+      saveHistory(next);
+      return next;
+    });
+    if (activeId === id) newChat();
   }
 
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[#e4e4e7] shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />
-          <span className="font-semibold text-[15px] text-[#0d0d0d]">Flagged AI</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Link
-            href="/agents"
-            className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
-          >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-              <rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-              <rect x="8.5" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-              <rect x="2" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-              <rect x="8.5" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-            </svg>
-            <span className="hidden sm:inline">Agents</span>
-          </Link>
-          <Link
-            href="/keys"
-            className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
-          >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-              <circle cx="6" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.3"/>
-              <path d="M8.5 8.5L13 13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M10.5 11l1.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-            <span className="hidden sm:inline">API Keys</span>
-          </Link>
-          {!isEmpty && (
+    <div className="flex h-full bg-white overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar
+        open={sidebarOpen}
+        history={history}
+        activeId={activeId}
+        onSelect={loadChat}
+        onDelete={deleteChat}
+        onNew={newChat}
+      />
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar */}
+        <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Sidebar toggle */}
             <button
-              onClick={newChat}
-              className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="h-7 w-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
             >
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M8 2.75a.75.75 0 0 0-1.5 0V7H2.75a.75.75 0 0 0 0 1.5H6.5v4.25a.75.75 0 0 0 1.5 0V8.5h4.25a.75.75 0 0 0 0-1.5H8V2.75Z" fill="currentColor"/></svg>
-              New check
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <rect x="1.5" y="3" width="12" height="1.2" rx="0.6" fill="currentColor"/>
+                <rect x="1.5" y="6.9" width="8" height="1.2" rx="0.6" fill="currentColor"/>
+                <rect x="1.5" y="10.8" width="12" height="1.2" rx="0.6" fill="currentColor"/>
+              </svg>
             </button>
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />
+            <span className="font-semibold text-[15px] text-zinc-900">Flagged AI</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Link href="/agents" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-1 rounded-lg hover:bg-zinc-100">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="8.5" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="2" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="8.5" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+              </svg>
+              <span className="hidden sm:inline">Agents</span>
+            </Link>
+            <Link href="/keys" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-1 rounded-lg hover:bg-zinc-100">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <circle cx="5.5" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M7.5 7.5L13 13M10.5 11l1.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              <span className="hidden sm:inline">API Keys</span>
+            </Link>
+            {!isEmpty && (
+              <button
+                onClick={newChat}
+                className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-1 rounded-lg hover:bg-zinc-100"
+              >
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                  <path d="M8 2.75a.75.75 0 0 0-1.5 0V7H2.75a.75.75 0 0 0 0 1.5H6.5v4.25a.75.75 0 0 0 1.5 0V8.5h4.25a.75.75 0 0 0 0-1.5H8V2.75Z" fill="currentColor"/>
+                </svg>
+                New
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Messages or empty state */}
+        <div className="flex-1 overflow-y-auto">
+          {isEmpty ? (
+            <EmptyState onDemo={(text) => setInput(text)} running={running} />
+          ) : (
+            <div className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6">
+              {messages.map((msg) =>
+                msg.role === "user"
+                  ? <UserMessage key={msg.id} text={msg.text} />
+                  : <AssistantMessage key={msg.id} msg={msg} />,
+              )}
+              <div ref={bottomRef} />
+            </div>
           )}
         </div>
-      </header>
 
-      {/* Messages or empty state */}
-      <div className="flex-1 overflow-y-auto">
-        {isEmpty ? (
-          <EmptyState
-            onDemo={(text) => setInput(text)}
-            running={running}
-          />
-        ) : (
-          <div className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6">
-            {messages.map((msg) =>
-              msg.role === "user" ? (
-                <UserMessage key={msg.id} text={msg.text} />
-              ) : (
-                <AssistantMessage key={msg.id} msg={msg} />
-              ),
-            )}
-            <div ref={bottomRef} />
+        {/* Input bar */}
+        <div className="shrink-0 border-t border-zinc-200 bg-white px-4 py-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-end gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm focus-within:border-zinc-400 transition-colors">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Paste a suspicious job offer, recruiter message, or LinkedIn URL…"
+                rows={1}
+                disabled={running}
+                className="flex-1 resize-none bg-transparent text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 outline-none disabled:opacity-50 min-h-[24px] max-h-[160px] overflow-y-auto"
+                style={{ height: "auto" }}
+              />
+              <button
+                onClick={submit}
+                disabled={!input.trim() || running}
+                className="shrink-0 h-8 w-8 rounded-full bg-zinc-900 text-white flex items-center justify-center disabled:opacity-30 hover:bg-zinc-700 transition-colors"
+                aria-label="Send"
+              >
+                {running ? (
+                  <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M7 1.5v11M7 1.5L3 5.5M7 1.5l4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+            </div>
+            <p className="text-center text-[11px] text-zinc-400 mt-2">
+              Enter to send · Shift+Enter for new line · up to 6 checks in parallel
+            </p>
           </div>
-        )}
-      </div>
-
-      {/* Input bar */}
-      <div className="shrink-0 border-t border-[#e4e4e7] bg-white px-4 py-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-3 rounded-2xl border border-[#e4e4e7] bg-white px-4 py-3 shadow-sm focus-within:border-[#a1a1aa] transition-colors">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Paste a suspicious job offer, recruiter message, or LinkedIn URL…"
-              rows={1}
-              disabled={running}
-              className="flex-1 resize-none bg-transparent text-sm leading-6 text-[#0d0d0d] placeholder:text-[#a1a1aa] outline-none disabled:opacity-50 min-h-[24px] max-h-[160px] overflow-y-auto"
-              style={{ height: "auto" }}
-            />
-            <button
-              onClick={submit}
-              disabled={!input.trim() || running}
-              className="shrink-0 h-8 w-8 rounded-full bg-[#0d0d0d] text-white flex items-center justify-center disabled:opacity-30 hover:bg-[#3f3f46] transition-colors"
-              aria-label="Send"
-            >
-              {running ? (
-                <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M7 1.5v11M7 1.5L3 5.5M7 1.5l4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-          </div>
-          <p className="text-center text-[11px] text-[#a1a1aa] mt-2">
-            Enter to send · Shift+Enter for new line · runs up to 6 checks in parallel
-          </p>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
 function EmptyState({ onDemo, running }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-full px-4 py-16 gap-8">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="h-12 w-12 rounded-2xl bg-[#f4f4f5] flex items-center justify-center">
+        <div className="h-12 w-12 rounded-2xl bg-zinc-100 flex items-center justify-center">
           <span className="h-4 w-4 rounded-full bg-red-500 inline-block" />
         </div>
-        <h1 className="text-2xl font-semibold text-[#0d0d0d]">Flagged AI</h1>
-        <p className="text-[#71717a] text-sm max-w-sm leading-relaxed">
+        <h1 className="text-2xl font-semibold text-zinc-900">Flagged AI</h1>
+        <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
           The agent between a scam job and its victim. Paste a suspicious
           offer — get a 0–100 risk score with reasoning in under 30 seconds.
         </p>
       </div>
-
       <div className="flex flex-col items-center gap-3">
-        <p className="text-xs text-[#a1a1aa] uppercase tracking-wider">Try a demo</p>
+        <p className="text-xs text-zinc-400 uppercase tracking-wider">Try a demo</p>
         <div className="flex flex-wrap justify-center gap-2 max-w-lg">
           {demoScenarios.map((s) => (
             <button
               key={s.id}
               onClick={() => onDemo(s.input)}
               disabled={running}
-              className="px-3.5 py-1.5 rounded-full border border-[#e4e4e7] text-sm text-[#3f3f46] hover:bg-[#f4f4f5] hover:border-[#d4d4d8] transition-colors disabled:opacity-40"
+              className="px-3.5 py-1.5 rounded-full border border-zinc-200 text-sm text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40"
             >
               {s.label}
             </button>
@@ -257,7 +359,7 @@ function EmptyState({ onDemo, running }) {
 function UserMessage({ text }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] bg-[#f4f4f5] rounded-2xl rounded-br-sm px-4 py-3 text-sm text-[#0d0d0d] leading-relaxed whitespace-pre-wrap break-words">
+      <div className="max-w-[80%] bg-zinc-100 rounded-2xl rounded-br-sm px-4 py-3 text-sm text-zinc-900 leading-relaxed whitespace-pre-wrap break-words">
         {text}
       </div>
     </div>
@@ -268,9 +370,8 @@ function AssistantMessage({ msg }) {
   const { events, verdict, recovery, error, done } = msg;
 
   const preprocessEvent = events.find((e) => e.type === "preprocess");
-  const planEvent = events.find((e) => e.type === "plan");
+  const planEvent       = events.find((e) => e.type === "plan");
 
-  // Build signal map: name → { status, summary, signal, reason }
   const reasonMap = {};
   for (const a of planEvent?.agents ?? []) reasonMap[a.name] = a.reason;
 
@@ -282,21 +383,19 @@ function AssistantMessage({ msg }) {
       signalMap[e.name] = { status: e.signal?.status ?? "ok", summary: e.summary, signal: e.signal, reason: reasonMap[e.name] ?? null };
     }
   }
-  const signalEntries = Object.entries(signalMap);
-  const allAgentsDone = signalEntries.length > 0 && signalEntries.every(([, v]) => v.status !== "running");
-  const isOrchestrating = allAgentsDone && !verdict && !recovery && !done;
 
-  const isThinking = !done && events.length === 0;
-  const hasSignals = signalEntries.length > 0;
-  const hasContent = preprocessEvent || hasSignals || verdict || recovery || error;
+  const signalEntries   = Object.entries(signalMap);
+  const allAgentsDone   = signalEntries.length > 0 && signalEntries.every(([, v]) => v.status !== "running");
+  const isOrchestrating = allAgentsDone && !verdict && !recovery && !done;
+  const isThinking      = !done && events.length === 0;
+  const hasSignals      = signalEntries.length > 0;
+  const hasContent      = preprocessEvent || hasSignals || verdict || recovery || error;
 
   return (
     <div className="flex gap-3">
-      {/* Avatar */}
       <div className="shrink-0 h-7 w-7 rounded-full bg-zinc-900 flex items-center justify-center mt-0.5">
         <span className="h-2.5 w-2.5 rounded-full bg-red-400 inline-block" />
       </div>
-
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         <span className="text-sm font-semibold text-zinc-900">Flagged AI</span>
 
@@ -309,38 +408,21 @@ function AssistantMessage({ msg }) {
 
         {hasContent && (
           <div className="flex flex-col gap-3">
-            {/* Preprocess info bar */}
-            {preprocessEvent && (
-              <PreprocessBadges data={preprocessEvent.data} />
-            )}
+            {preprocessEvent && <PreprocessBadges data={preprocessEvent.data} />}
 
-            {/* Agents section */}
             {hasSignals && (
               <div className="rounded-2xl border border-zinc-200 overflow-hidden">
-                {/* Section header */}
                 <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                    Checks
-                  </span>
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Checks</span>
                   <span className="text-xs text-zinc-400">
                     {signalEntries.filter(([, v]) => v.status !== "running").length} / {signalEntries.length} done
                   </span>
                 </div>
-
                 <div className="divide-y divide-zinc-100">
                   {signalEntries.map(([name, { status, summary, signal, reason }]) => (
-                    <SignalRow
-                      key={name}
-                      name={name}
-                      status={status}
-                      summary={summary}
-                      signal={signal}
-                      reason={reason}
-                    />
+                    <SignalRow key={name} name={name} status={status} summary={summary} signal={signal} reason={reason} />
                   ))}
                 </div>
-
-                {/* Orchestrating footer */}
                 {isOrchestrating && (
                   <div className="flex items-center gap-2.5 px-4 py-3 bg-zinc-50 border-t border-zinc-100">
                     <ThinkingDots />
@@ -351,12 +433,9 @@ function AssistantMessage({ msg }) {
             )}
 
             {recovery && <RecoveryCard recovery={recovery} />}
-            {verdict && <VerdictCard verdict={verdict} />}
-
-            {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
-                {error}
-              </div>
+            {verdict   && <VerdictCard verdict={verdict} />}
+            {error     && (
+              <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">{error}</div>
             )}
           </div>
         )}
@@ -369,11 +448,8 @@ function ThinkingDots() {
   return (
     <span className="flex gap-1">
       {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-1.5 w-1.5 rounded-full bg-zinc-300 animate-bounce"
-          style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.9s" }}
-        />
+        <span key={i} className="h-1.5 w-1.5 rounded-full bg-zinc-300 animate-bounce"
+          style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.9s" }} />
       ))}
     </span>
   );
@@ -382,29 +458,18 @@ function ThinkingDots() {
 function PreprocessBadges({ data }) {
   if (!data) return null;
   const badges = [];
-  if (data.paymentAsk) {
-    badges.push({ label: `Payment ask${data.paymentAmount ? ` · ${data.paymentAmount}` : ""}`, color: "red" });
-  }
-  if (data.userIntent === "recovery") {
-    badges.push({ label: "Recovery mode", color: "amber" });
-  }
-  if (data.redFlagPhrases?.length) {
-    badges.push({ label: `${data.redFlagPhrases.length} red flag phrase${data.redFlagPhrases.length > 1 ? "s" : ""}`, color: "orange" });
-  }
-  if (data.company) {
-    badges.push({ label: data.company, color: "gray" });
-  }
-  if (data.role) {
-    badges.push({ label: data.role, color: "gray" });
-  }
-
+  if (data.paymentAsk)          badges.push({ label: `Payment ask${data.paymentAmount ? ` · ${data.paymentAmount}` : ""}`, color: "red" });
+  if (data.userIntent === "recovery") badges.push({ label: "Recovery mode", color: "amber" });
+  if (data.redFlagPhrases?.length)    badges.push({ label: `${data.redFlagPhrases.length} red flag phrase${data.redFlagPhrases.length > 1 ? "s" : ""}`, color: "orange" });
+  if (data.company)             badges.push({ label: data.company, color: "gray" });
+  if (data.role)                badges.push({ label: data.role,    color: "gray" });
   if (!badges.length) return null;
 
   const colors = {
-    red: "bg-red-50 text-red-700 border-red-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
+    red:    "bg-red-50 text-red-700 border-red-200",
+    amber:  "bg-amber-50 text-amber-700 border-amber-200",
     orange: "bg-orange-50 text-orange-700 border-orange-200",
-    gray: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    gray:   "bg-zinc-100 text-zinc-600 border-zinc-200",
   };
 
   return (
