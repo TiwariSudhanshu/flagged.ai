@@ -4,7 +4,7 @@ import { formatWhatsApp } from "@/lib/formatWhatsApp";
 
 export const runtime  = "nodejs";
 export const dynamic  = "force-dynamic";
-export const maxDuration = 10; // Just return TwiML fast; analysis runs via after()
+export const maxDuration = 300; // after() runs inside this window — needs 30-60s for full pipeline
 
 /*
   Twilio Sandbox setup:
@@ -33,17 +33,12 @@ export async function POST(request) {
 
   if (!body || !from) return twiml();
 
-  // Minimum length guard — ignore accidental short pings
+  // Minimum length guard — greet on short/accidental pings
   if (body.length < 10) {
-    after(() =>
-      sendWhatsApp(from,
-        "👋 *Flagged AI* here.\n\nForward any suspicious job offer, recruiter message, or company name and I'll analyse it for scam signals.\n\n_Paste the full text for best results._"
-      )
-    );
-    return twiml();
+    return twiml("👋 *Flagged AI* here.\n\nForward any suspicious job offer, recruiter message, or LinkedIn DM and I'll check it for scam signals. Paste the full text for best results.");
   }
 
-  // Fire analysis after TwiML is already on the wire — Twilio won't time out
+  // Immediately acknowledge — user sees this while analysis runs in background
   after(async () => {
     try {
       console.log(`[WhatsApp] Analysing message from ${from} (${body.length} chars)`);
@@ -62,14 +57,17 @@ export async function POST(request) {
     }
   });
 
-  return twiml();
+  return twiml("🔍 *Flagged AI* is analysing your message across 6 sources. Results in ~30 seconds…");
 }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
-function twiml() {
+function twiml(message = "") {
+  const body = message
+    ? `<Message>${message.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</Message>`
+    : "";
   return new Response(
-    `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+    `<?xml version="1.0" encoding="UTF-8"?><Response>${body}</Response>`,
     { headers: { "Content-Type": "text/xml; charset=utf-8" } }
   );
 }
