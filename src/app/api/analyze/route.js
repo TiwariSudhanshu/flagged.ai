@@ -2,6 +2,8 @@ import { run } from "@/lib/pipeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Allow up to 5 minutes for the full pipeline (preprocess + agents + orchestrate)
+export const maxDuration = 300;
 
 export async function POST(request) {
   let body;

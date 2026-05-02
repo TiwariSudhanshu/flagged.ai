@@ -1,27 +1,23 @@
-const KEY = process.env.GEMINI_API_KEY;
+// LLM client — uses OpenRouter (OpenAI-compatible) API
+const API_KEY = process.env.LLM_API_KEY;
+const BASE_URL = process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1";
 
-export const FAST_MODEL = process.env.GEMINI_MODEL_FAST || "gemini-2.5-flash";
-export const REASON_MODEL = process.env.GEMINI_MODEL_REASON || "gemini-2.5-flash";
+if (!API_KEY) console.warn("[LLM] ⚠ LLM_API_KEY is not set!");
+
+export const FAST_MODEL = process.env.LLM_MODEL_FAST || "openai/gpt-oss-120b";
+export const REASON_MODEL = process.env.LLM_MODEL_REASON || "openai/gpt-oss-120b";
 
 const CALL_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 3;
+const BASE_RETRY_WAIT = 5_000;
 
 export async function generateJson({ model, system, prompt, schema, temperature = 0.2 }) {
-  const tag = `[Gemini:${model}]`;
+  const tag = `[LLM:${model}]`;
 
   const result = await _callWithRetry({ model, system, prompt, schema, temperature, tag });
   if (result !== null) return result;
 
-  if (model !== FAST_MODEL) {
-    const fbTag = `[Gemini:${FAST_MODEL}:fallback]`;
-    console.warn(`${tag} Falling back to ${FAST_MODEL}…`);
-    const fallback = await _callWithRetry({
-      model: FAST_MODEL, system, prompt, schema, temperature, tag: fbTag,
-    });
-    if (fallback !== null) return fallback;
-  }
-
-  throw new Error("Gemini API rate limit hit. Please wait a minute and try again.");
+  throw new Error("LLM API rate limit hit. Please wait a minute and try again.");
 }
 
 async function _callWithRetry({ model, system, prompt, schema, temperature, tag }) {
@@ -29,8 +25,10 @@ async function _callWithRetry({ model, system, prompt, schema, temperature, tag 
     const result = await _call({ model, system, prompt, schema, temperature, tag, attempt });
     if (result.ok) return result.data;
 
-    if (result.retryMs && attempt < MAX_RETRIES) {
-      const wait = Math.min(result.retryMs, 30_000);
+    if (result.rateLimited && attempt < MAX_RETRIES) {
+      const serverWait = result.retryMs || 0;
+      const backoffWait = BASE_RETRY_WAIT * Math.pow(2, attempt - 1);
+      const wait = Math.min(Math.max(serverWait, backoffWait), 60_000);
       console.warn(`${tag} ⚠ Rate limited (attempt ${attempt}/${MAX_RETRIES}). Waiting ${Math.ceil(wait / 1000)}s…`);
       await sleep(wait);
       continue;
@@ -42,85 +40,77 @@ async function _callWithRetry({ model, system, prompt, schema, temperature, tag 
   return null;
 }
 
-import https from "https";
-
 async function _call({ model, system, prompt, schema, temperature, tag, attempt }) {
   console.log(`${tag} Attempt ${attempt}/${MAX_RETRIES}…`);
-  
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      system_instruction: { parts: [{ text: system }] },
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature,
-        responseMimeType: "application/json",
-        responseSchema: schema,
-      },
-    });
 
-    const options = {
-      hostname: "generativelanguage.googleapis.com",
-      port: 443,
-      path: `/v1beta/models/${model}:generateContent?key=${KEY}`,
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+
+  // Build the system prompt — embed the JSON schema so the model knows the shape
+  const fullSystem = schema
+    ? `${system}\n\nYou MUST return valid JSON matching this schema:\n${JSON.stringify(schema, null, 2)}`
+    : system;
+
+  const body = {
+    model,
+    messages: [
+      { role: "system", content: fullSystem },
+      { role: "user", content: prompt },
+    ],
+    temperature,
+    response_format: { type: "json_object" },
+    max_tokens: 4096,
+  };
+
+  try {
+    const res = await fetch(`${BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${API_KEY}`,
         "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(payload),
       },
-      timeout: CALL_TIMEOUT_MS, // Node.js native socket timeout
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => { data += chunk; });
-      res.on("end", () => {
-        try {
-          const json = JSON.parse(data);
-
-          if (res.statusCode < 200 || res.statusCode >= 300) {
-            const msg = json.error?.message || JSON.stringify(json);
-            const isRateLimit = res.statusCode === 429 || msg.includes("quota");
-            if (isRateLimit) {
-              const m = msg.match(/retry\s*(?:in|Delay['":\s]*)(\d+(?:\.\d+)?)\s*s/i);
-              const retryMs = m ? Math.ceil(parseFloat(m[1]) * 1000) + 1000 : 5000;
-              return resolve({ ok: false, rateLimited: true, retryMs, error: msg });
-            }
-            return resolve({ ok: false, rateLimited: false, error: msg });
-          }
-
-          const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          const parsed = JSON.parse(text);
-          console.log(`${tag} ✓ Done`);
-          resolve({ ok: true, data: parsed });
-        } catch (e) {
-          resolve({ ok: false, rateLimited: false, error: "Failed to parse response: " + e.message });
-        }
-      });
+      body: JSON.stringify(body),
+      signal: controller.signal,
     });
 
-    req.on("error", (e) => {
-      resolve({ ok: false, rateLimited: false, error: e.message });
-    });
+    clearTimeout(timer);
 
-    req.on("timeout", () => {
-      req.destroy();
-      resolve({ ok: false, rateLimited: false, error: `Gemini API timed out after ${CALL_TIMEOUT_MS / 1000}s` });
-    });
-
-    req.write(payload);
-    req.end();
-  });
-}
-
-function cleanMsg(msg) {
-  try {
-    const m = msg.match(/\{[\s\S]*\}/);
-    if (m) {
-      const p = JSON.parse(m[0]);
-      return p?.error?.message?.split("\n")[0] || msg.slice(0, 150);
+    if (!res.ok) {
+      const errBody = await res.text();
+      let msg;
+      try { msg = JSON.parse(errBody)?.error?.message || errBody; } catch { msg = errBody; }
+      const isRateLimit = res.status === 429 || msg.includes("quota") || msg.includes("rate");
+      if (isRateLimit) {
+        const m = msg.match(/retry\s*(?:in|after|Delay['":\s]*)(\d+(?:\.\d+)?)\s*s/i);
+        const retryMs = m ? Math.ceil(parseFloat(m[1]) * 1000) + 1000 : BASE_RETRY_WAIT;
+        return { ok: false, rateLimited: true, retryMs, error: msg.slice(0, 300) };
+      }
+      return { ok: false, rateLimited: false, error: `HTTP ${res.status}: ${msg.slice(0, 300)}` };
     }
-  } catch {}
-  return msg.slice(0, 150);
+
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content ?? "";
+
+    if (!text) {
+      return { ok: false, rateLimited: false, error: "Empty response from LLM" };
+    }
+
+    try {
+      const parsed = JSON.parse(text);
+      console.log(`${tag} ✓ Done`);
+      return { ok: true, data: parsed };
+    } catch (e) {
+      return { ok: false, rateLimited: false, error: "Failed to parse JSON: " + e.message + " | Raw: " + text.slice(0, 200) };
+    }
+  } catch (err) {
+    clearTimeout(timer);
+
+    if (err.name === "AbortError") {
+      return { ok: false, rateLimited: false, error: `LLM timed out after ${CALL_TIMEOUT_MS / 1000}s` };
+    }
+
+    return { ok: false, rateLimited: false, error: err.message || String(err) };
+  }
 }
 
 function sleep(ms) {
