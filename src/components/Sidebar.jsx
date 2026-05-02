@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 const VERDICT_DOT = {
   scam:        "bg-red-500",
   suspicious:  "bg-amber-400",
