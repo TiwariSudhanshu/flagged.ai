@@ -400,9 +400,9 @@ function AssistantMessage({ msg }) {
   const hasContent      = preprocessEvent || hasSignals || verdict || recovery || error;
 
   return (
-    <div className="flex gap-3">
-      <div className="shrink-0 h-9 w-9 rounded-full overflow-hidden mt-0.5">
-        <Image src="/logo.png" alt="Flagged AI" width={36} height={36} className="object-cover" />
+    <div className="flex gap-2">
+      <div className="shrink-0 h-12 w-12 rounded-full overflow-hidden mt-0.5">
+        <Image src="/logo.png" alt="Flagged AI" width={48} height={48} className="object-cover" />
       </div>
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         <span className="text-sm font-semibold text-zinc-900">Flagged AI</span>
