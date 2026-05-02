@@ -96,7 +96,25 @@ async function _call({ model, system, prompt, schema, temperature, tag, attempt 
     }
 
     try {
-      const parsed = JSON.parse(text);
+      let parsed = JSON.parse(text);
+      // Unwrap single-key wrapper objects the model sometimes emits
+      // e.g. { "verdict": { score, verdict, ... } } → { score, verdict, ... }
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed)
+      ) {
+        const keys = Object.keys(parsed);
+        if (
+          keys.length === 1 &&
+          parsed[keys[0]] !== null &&
+          typeof parsed[keys[0]] === "object" &&
+          !Array.isArray(parsed[keys[0]]) &&
+          Object.keys(parsed[keys[0]]).length > 1
+        ) {
+          parsed = parsed[keys[0]];
+        }
+      }
       console.log(`${tag} ✓ Done`);
       return { ok: true, data: parsed };
     } catch (e) {

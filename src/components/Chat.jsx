@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import VerdictCard from "./VerdictCard";
 import SignalRow from "./SignalRow";
 import RecoveryCard from "./RecoveryCard";
@@ -120,15 +121,29 @@ export default function Chat() {
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />
           <span className="font-semibold text-[15px] text-[#0d0d0d]">Flagged AI</span>
         </div>
-        {!isEmpty && (
-          <button
-            onClick={newChat}
+        <div className="flex items-center gap-1">
+          <Link
+            href="/agents"
             className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M8 2.75a.75.75 0 0 0-1.5 0V7H2.75a.75.75 0 0 0 0 1.5H6.5v4.25a.75.75 0 0 0 1.5 0V8.5h4.25a.75.75 0 0 0 0-1.5H8V2.75Z" fill="currentColor"/></svg>
-            New check
-          </button>
-        )}
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+              <rect x="8.5" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+              <rect x="2" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+              <rect x="8.5" y="8.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+            </svg>
+            <span className="hidden sm:inline">Agents</span>
+          </Link>
+          {!isEmpty && (
+            <button
+              onClick={newChat}
+              className="flex items-center gap-1.5 text-sm text-[#71717a] hover:text-[#0d0d0d] transition-colors px-2 py-1 rounded-lg hover:bg-[#f4f4f5]"
+            >
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M8 2.75a.75.75 0 0 0-1.5 0V7H2.75a.75.75 0 0 0 0 1.5H6.5v4.25a.75.75 0 0 0 1.5 0V8.5h4.25a.75.75 0 0 0 0-1.5H8V2.75Z" fill="currentColor"/></svg>
+              New check
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Messages or empty state */}
@@ -242,51 +257,85 @@ function AssistantMessage({ msg }) {
   const { events, verdict, recovery, error, done } = msg;
 
   const preprocessEvent = events.find((e) => e.type === "preprocess");
-  const signalDone = events.filter((e) => e.type === "agent_done" || e.type === "agent_skipped");
-  const signalRunning = events
-    .filter((e) => e.type === "agent_start")
-    .map((e) => e.name)
-    .filter((n) => !signalDone.some((s) => s.name === n));
+  const planEvent = events.find((e) => e.type === "plan");
+
+  // Build signal map: name → { status, summary, signal, reason }
+  const reasonMap = {};
+  for (const a of planEvent?.agents ?? []) reasonMap[a.name] = a.reason;
+
+  const signalMap = {};
+  for (const e of events) {
+    if (e.type === "agent_start") {
+      signalMap[e.name] = { status: "running", summary: null, signal: null, reason: reasonMap[e.name] ?? e.reason ?? null };
+    } else if (e.type === "agent_done") {
+      signalMap[e.name] = { status: e.signal?.status ?? "ok", summary: e.summary, signal: e.signal, reason: reasonMap[e.name] ?? null };
+    }
+  }
+  const signalEntries = Object.entries(signalMap);
+  const allAgentsDone = signalEntries.length > 0 && signalEntries.every(([, v]) => v.status !== "running");
+  const isOrchestrating = allAgentsDone && !verdict && !recovery && !done;
 
   const isThinking = !done && events.length === 0;
-  const hasContent = preprocessEvent || signalDone.length > 0 || signalRunning.length > 0 || verdict || recovery || error;
+  const hasSignals = signalEntries.length > 0;
+  const hasContent = preprocessEvent || hasSignals || verdict || recovery || error;
 
   return (
     <div className="flex gap-3">
       {/* Avatar */}
-      <div className="shrink-0 h-7 w-7 rounded-full bg-[#0d0d0d] flex items-center justify-center mt-0.5">
+      <div className="shrink-0 h-7 w-7 rounded-full bg-zinc-900 flex items-center justify-center mt-0.5">
         <span className="h-2.5 w-2.5 rounded-full bg-red-400 inline-block" />
       </div>
 
       <div className="flex-1 flex flex-col gap-3 min-w-0">
-        <span className="text-sm font-semibold text-[#0d0d0d]">Flagged AI</span>
+        <span className="text-sm font-semibold text-zinc-900">Flagged AI</span>
 
         {isThinking && (
-          <div className="flex items-center gap-2 text-sm text-[#71717a]">
+          <div className="flex items-center gap-2.5 text-sm text-zinc-400">
             <ThinkingDots />
-            <span>Analyzing…</span>
+            <span>Reading your message…</span>
           </div>
         )}
 
         {hasContent && (
           <div className="flex flex-col gap-3">
+            {/* Preprocess info bar */}
             {preprocessEvent && (
               <PreprocessBadges data={preprocessEvent.data} />
             )}
 
-            {(signalDone.length > 0 || signalRunning.length > 0) && (
-              <div className="flex flex-col gap-1.5">
-                {signalDone.map((e, i) => (
-                  <SignalRow
-                    key={`${e.name}-${i}`}
-                    name={e.name}
-                    status={e.signal?.status ?? "ok"}
-                    summary={e.summary}
-                  />
-                ))}
-                {signalRunning.map((name) => (
-                  <SignalRow key={`r-${name}`} name={name} status="running" />
-                ))}
+            {/* Agents section */}
+            {hasSignals && (
+              <div className="rounded-2xl border border-zinc-200 overflow-hidden">
+                {/* Section header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                    Checks
+                  </span>
+                  <span className="text-xs text-zinc-400">
+                    {signalEntries.filter(([, v]) => v.status !== "running").length} / {signalEntries.length} done
+                  </span>
+                </div>
+
+                <div className="divide-y divide-zinc-100">
+                  {signalEntries.map(([name, { status, summary, signal, reason }]) => (
+                    <SignalRow
+                      key={name}
+                      name={name}
+                      status={status}
+                      summary={summary}
+                      signal={signal}
+                      reason={reason}
+                    />
+                  ))}
+                </div>
+
+                {/* Orchestrating footer */}
+                {isOrchestrating && (
+                  <div className="flex items-center gap-2.5 px-4 py-3 bg-zinc-50 border-t border-zinc-100">
+                    <ThinkingDots />
+                    <span className="text-xs text-zinc-500">Generating verdict…</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -311,7 +360,7 @@ function ThinkingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="h-1.5 w-1.5 rounded-full bg-[#a1a1aa] animate-bounce"
+          className="h-1.5 w-1.5 rounded-full bg-zinc-300 animate-bounce"
           style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.9s" }}
         />
       ))}
@@ -344,7 +393,7 @@ function PreprocessBadges({ data }) {
     red: "bg-red-50 text-red-700 border-red-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
     orange: "bg-orange-50 text-orange-700 border-orange-200",
-    gray: "bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]",
+    gray: "bg-zinc-100 text-zinc-600 border-zinc-200",
   };
 
   return (
