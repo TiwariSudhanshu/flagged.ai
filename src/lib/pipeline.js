@@ -59,6 +59,10 @@ export async function run(input, { onEvent } = {}) {
 
 function summarize(signal) {
   if (!signal) return "";
+  if (signal.status === "manual") {
+    if (signal.source === "gst") return signal.data?.gstin ? `GSTIN ${signal.data.gstin} — verify at GST portal →` : "No GSTIN in posting — verify manually →";
+    return "Verify manually at mca.gov.in →";
+  }
   if (signal.status !== "ok") return signal.reason || signal.status;
   switch (signal.source) {
     case "scamDb":

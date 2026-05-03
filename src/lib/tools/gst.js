@@ -19,8 +19,12 @@ export async function lookup({ company, rawText }) {
 
   return {
     source: "gst",
-    status: "unavailable",
-    reason: "No GSTIN found in text and no GST_API_KEY set. Set GST_API_KEY (Surepass/KnowYourGST free tier) to enable company-name lookup.",
+    status: "manual",
+    reason: "No GSTIN in posting",
+    data: {
+      manualUrl: `https://taxpayersearch.gst.gov.in/`,
+      tip: "Legitimate companies often include GSTIN in formal offer letters. Ask the recruiter for it, then verify here.",
+    },
   };
 }
 
@@ -43,9 +47,9 @@ async function freeLookup(gstin) {
       },
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch {
     clearTimeout(t);
-    return { source: "gst", status: "unavailable", reason: err.name === "AbortError" ? "timeout" : err.message };
+    return { source: "gst", status: "manual", reason: "GST portal unreachable", data: { manualUrl: "https://taxpayersearch.gst.gov.in/", gstin } };
   }
   clearTimeout(t);
 
@@ -53,12 +57,12 @@ async function freeLookup(gstin) {
     return { source: "gst", status: "ok", data: { found: false, gstin, provider: "gst.gov.in" } };
   }
   if (!res.ok) {
-    return { source: "gst", status: "unavailable", reason: `gst.gov.in HTTP ${res.status}` };
+    return { source: "gst", status: "manual", reason: "GST portal unavailable", data: { manualUrl: "https://taxpayersearch.gst.gov.in/", gstin } };
   }
 
   let json;
   try { json = await res.json(); } catch {
-    return { source: "gst", status: "unavailable", reason: "gst.gov.in returned non-JSON (portal may be down)" };
+    return { source: "gst", status: "manual", reason: "GST portal unavailable", data: { manualUrl: "https://taxpayersearch.gst.gov.in/", gstin } };
   }
 
   const d = json?.taxpayerInfo || json;

@@ -212,6 +212,28 @@ function renderDetail(name, signal) {
   if (status === "skipped")     return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Skipped — {signal.reason}</span>;
   if (status === "error")       return <span style={{ fontSize: 12, color: "var(--danger)" }}>{signal.reason}</span>;
   if (status === "unavailable") return <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Unavailable — {signal.reason}</span>;
+  if (status === "manual") {
+    const isGst = name === "gst";
+    const url = data?.manualUrl ?? (isGst ? "https://taxpayersearch.gst.gov.in/" : "https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do");
+    const linkLabel = isGst ? "Search on GST portal →" : "Search on MCA portal →";
+    const tip = isGst
+      ? (data?.tip ?? "Legitimate companies include GSTIN in formal offer letters. Ask the recruiter for it, then verify.")
+      : "Verify the company's incorporation status and CIN on the official MCA portal.";
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{tip}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, color: "var(--accent)", textDecoration: "none", padding: "5px 10px", border: "1px solid var(--accent)", borderRadius: 6, width: "fit-content" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {linkLabel}
+        </a>
+      </div>
+    );
+  }
   switch (name) {
     case "scamDb":        return <ScamDbDetail data={data} />;
     case "domainAgent":   return <DomainDetail data={data} />;
@@ -261,8 +283,8 @@ export default function SignalRow({ name, status, summary, signal, reason }) {
   const isRunning  = status === "running";
   const hasDetail  = !isRunning && !!signal;
 
-  const iconClass = `check-icon ${status === "ok" ? "ok" : status === "warn" ? "warn" : status === "danger" ? "danger" : status === "running" ? "running" : status === "error" ? "error" : "unavailable"}`;
-  const dotClass  = `check-status ${status}`;
+  const iconClass = `check-icon ${status === "ok" ? "ok" : status === "warn" ? "warn" : status === "danger" ? "danger" : status === "running" ? "running" : status === "error" ? "error" : status === "manual" ? "unavailable" : "unavailable"}`;
+  const dotClass  = `check-status ${status === "manual" ? "unavailable" : status}`;
 
   const renderIcon = () => {
     if (isRunning) return <IcoSpin />;

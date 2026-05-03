@@ -59,7 +59,7 @@ async function _call({ model, system, prompt, schema, temperature, tag, attempt 
     ],
     temperature,
     response_format: { type: "json_object" },
-    max_tokens: 4096,
+    max_tokens: 8192,
   };
 
   try {
@@ -95,8 +95,19 @@ async function _call({ model, system, prompt, schema, temperature, tag, attempt 
       return { ok: false, rateLimited: false, error: "Empty response from LLM" };
     }
 
+    // Check if the model hit the token limit mid-response
+    const finishReason = json.choices?.[0]?.finish_reason;
+    if (finishReason === "length") {
+      console.warn(`${tag} ⚠ Response truncated (finish_reason=length) — consider raising max_tokens`);
+    }
+
     try {
-      let parsed = JSON.parse(text);
+      // Strip markdown code fences if the model wrapped the JSON
+      let rawText = text.trim();
+      const fenceMatch = rawText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+      if (fenceMatch) rawText = fenceMatch[1];
+
+      let parsed = JSON.parse(rawText);
       // Unwrap single-key wrapper objects the model sometimes emits
       // e.g. { "verdict": { score, verdict, ... } } → { score, verdict, ... }
       if (
@@ -118,7 +129,8 @@ async function _call({ model, system, prompt, schema, temperature, tag, attempt 
       console.log(`${tag} ✓ Done`);
       return { ok: true, data: parsed };
     } catch (e) {
-      return { ok: false, rateLimited: false, error: "Failed to parse JSON: " + e.message + " | Raw: " + text.slice(0, 200) };
+      console.error(`${tag} JSON parse error: ${e.message} | Raw: ${text.slice(0, 400)}`);
+      return { ok: false, rateLimited: false, error: "The AI returned an unexpected response format. Please try again." };
     }
   } catch (err) {
     clearTimeout(timer);

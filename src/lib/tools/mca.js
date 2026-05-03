@@ -7,15 +7,16 @@ export async function lookup({ company }) {
 
   // Try OpenCorporates first — no key needed
   const oc = await openCorporates(company);
-  if (oc.status === "ok" || oc.status === "error") return oc;
+  if (oc.status === "ok" || oc.status === "error" || oc.status === "manual") return oc;
 
   // OpenCorporates unavailable → try Probe42 if key is present
   if (PROBE42_KEY) return probe42(company);
 
   return {
     source: "mca",
-    status: "unavailable",
-    reason: "OpenCorporates unreachable; set PROBE42_API_KEY as fallback",
+    status: "manual",
+    reason: "Automated lookup unavailable",
+    data: { manualUrl: `https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do` },
   };
 }
 
@@ -29,17 +30,14 @@ async function openCorporates(company) {
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch {
     clearTimeout(t);
-    return { source: "mca", status: "unavailable", reason: err.name === "AbortError" ? "timeout" : err.message };
+    return { source: "mca", status: "manual", reason: "Automated lookup unavailable", data: { manualUrl: "https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do" } };
   }
   clearTimeout(t);
 
-  if (res.status === 429) {
-    return { source: "mca", status: "unavailable", reason: "OpenCorporates rate limit hit" };
-  }
-  if (!res.ok) {
-    return { source: "mca", status: "unavailable", reason: `OpenCorporates HTTP ${res.status}` };
+  if (res.status === 429 || !res.ok) {
+    return { source: "mca", status: "manual", reason: "Automated lookup unavailable", data: { manualUrl: "https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do" } };
   }
 
   const json = await res.json();
@@ -84,9 +82,9 @@ async function probe42(company) {
       headers: { "x-api-key": PROBE42_KEY, "x-api-version": "1.3" },
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch {
     clearTimeout(t);
-    return { source: "mca", status: "unavailable", reason: err.name === "AbortError" ? "timeout" : err.message };
+    return { source: "mca", status: "manual", reason: "Automated lookup unavailable", data: { manualUrl: "https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do" } };
   }
   clearTimeout(t);
   if (!res.ok) return { source: "mca", status: "error", reason: `Probe42 HTTP ${res.status}` };
